@@ -3,6 +3,5 @@ numpy
 requests
 st_social_media_links
 opencv-contrib-python
-opencv-python
 pillow
 ultralytics
