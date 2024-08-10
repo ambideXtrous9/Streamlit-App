@@ -26,34 +26,22 @@ def SideBar():
         
         st.header("Menu")
         
-        if st.button("🛡️ Home"):
+        if st.button("🎃 Home"):
             navigate("Home")
+            
+        if st.button("🧠 News QA System using LLM"):
+            navigate("newsqa")
         
-        if st.button("🛡️ Yolo for Logo"):
+        if st.button("🚀 Yolo for Logo"):
             navigate("yolologo")
             
             
         if st.button("🐙 GitHub Stats"):
             navigate("github_stats")
             
-        if st.button("🚀 Social"):
+        if st.button("🌐 Social"):
             navigate("Social")
             
-        if st.button("🤖 Straddle Bot"):
-            navigate("straddle_bot")
-        if st.button("⚙️ Automate"):
-            navigate("automate")
-        if st.button("🛒 Order System"):
-            navigate("order_system")
-        if st.button("🌐 Multi Account"):
-            navigate("multi_account")
-        if st.button("🕵️‍♂️ PriceAction Backtester"):
-            navigate("priceaction_backtester")
-        if st.button("👼 Oauth Angel"):
-            navigate("oauth_angel")
-        if st.button("🏦 Oauth IIFL"):
-            navigate("oauth_iifl")
-        if st.button("🎃 Oauth Upstox"):
-            navigate("oauth_upstox")
+        
 
         

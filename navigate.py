@@ -1,5 +1,5 @@
 import streamlit as st 
-from util import GitHubStats, HomePage, Social, YoloforLogo
+from util import GitHubStats, HomePage, Social, YoloforLogo, NewsQA
 
 
 def navigator():
@@ -32,37 +32,11 @@ def navigator():
     elif page == "Social":
         Social(sidebarPos=False,heading="Social")
 
-    elif page == "straddle_bot":
-        st.subheader("Straddle Bot Page")
-        st.write("Content for the Straddle Bot page goes here.")
 
-    elif page == "automate":
-        st.subheader("Automate Page")
-        st.write("Content for the Automate page goes here.")
-
-    elif page == "order_system":
-        st.subheader("Order System Page")
-        st.write("Content for the Order System page goes here.")
-
-    elif page == "multi_account":
-        st.subheader("Multi Account Page")
-        st.write("Content for the Multi Account page goes here.")
-
-    elif page == "priceaction_backtester":
-        st.subheader("PriceAction Backtester Page")
-        st.write("Content for the PriceAction Backtester page goes here.")
-
-    elif page == "oauth_angel":
-        st.subheader("Oauth Angel Page")
-        st.write("Content for the Oauth Angel page goes here.")
-
-    elif page == "oauth_iifl":
-        st.subheader("Oauth IIFL Page")
-        st.write("Content for the Oauth IIFL page goes here.")
-
-    elif page == "oauth_upstox":
-        st.subheader("Oauth Upstox Page")
-        st.write("Content for the Oauth Upstox page goes here.")
+    elif page == "newsqa":
+        st.title(":rainbow[⚙️ News QA System using LLM] :sunglasses:")
+        NewsQA()
+        
 
     else:
         st.subheader("Home Page")
