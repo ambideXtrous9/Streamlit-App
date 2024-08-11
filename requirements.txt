@@ -6,6 +6,5 @@ opencv-python-headless
 pillow
 ultralytics
 plotly
-math
 matplotlib
 scikit-learn
