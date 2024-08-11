@@ -37,9 +37,9 @@ def glowingSocial():
         .footer {{
             display: flex;
             justify-content: center;
-            gap: 50px;
-            margin-top: 200px;
-            padding: 10px;
+            gap: 20px;
+            margin-top: 100px;
+            padding: 0px;
             width: 100%;
             position: relative;
             bottom: 0;
