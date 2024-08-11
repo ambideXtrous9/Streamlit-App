@@ -6,42 +6,8 @@ from st_social_media_links import SocialMediaIcons
 from LogoYolo.inference import predict
 import cv2
 from PIL import Image
+from icons import glowingSocial,glowingYolo,glowingLLM
 
-def glowingSocial():
-    
-    #github
-    
-    iconlink = 'https://static-00.iconduck.com/assets.00/kaggle-icon-2048x2048-fxhlmjy3.png'
-    proflink = 'https://www.kaggle.com/sushovansaha9'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=180,size=50,R=100)
-    
-    # kaggle
-    
-    iconlink = 'https://qph.cf2.quoracdn.net/main-qimg-729a22aba98d1235fdce4883accaf81e'
-    proflink = 'https://github.com/ambideXtrous9'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=280,size=50,G=100)
-    
-    #linkedin
-    
-    iconlink = 'https://images.rawpixel.com/image_png_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvdjk4Mi1kMy0xMC5wbmc.png'
-    proflink = 'https://www.linkedin.com/in/sushovan-saha-29a00a113'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=380,size=50,B=100)
-    
-    #leetcode
-    
-    iconlink = 'https://upload.wikimedia.org/wikipedia/commons/8/8e/LeetCode_Logo_1.png'
-    proflink = 'https://leetcode.com/u/ambideXtrous9/'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=80,size=50)
-    
-    iconlink = 'https://cdn4.iconfinder.com/data/icons/social-media-2210/24/Medium-512.png'
-    proflink = 'https://medium.com/@sushovansaha95'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=480,size=50)
-    
 
 def Social(sidebarPos = False,heading = None):
     
@@ -85,6 +51,7 @@ def HomePage():
     glowingSocial()
     
     
+    
 
 
 def GitHubStats():
@@ -102,34 +69,7 @@ def GitHubStats():
         st.write(f"**Profile URL:** {user_data['html_url']}")
     else:
         st.error("Failed to fetch GitHub stats. Please check the username or try again later.")
-        
-        
-def glowingLogo(href,iconlink,bpos,rpos,size,R=64,G=224,B=208):
-    
-    st.markdown(f'''
-        <style>
-        @keyframes glow {{
-            0% {{ box-shadow: 0 0 10px 5px rgba({R}, {G}, {B}, 0.8); }}
-            50% {{ box-shadow: 0 0 20px 10px rgba({R}, {G}, {B}, 1); }}
-            100% {{ box-shadow: 0 0 10px 5px rgba({R}, {G}, {B}, 0.8); }}
-        }}
 
-        .glowing-image {{
-            width: {size}px;
-            height: {size}px;
-            border-radius: 50%;
-            animation: glow 2s infinite;
-        }}
-        </style>
-
-        <div style="position: fixed; bottom: {bpos}px; right: {rpos}px;">
-            <a href='{href}' target='_blank'>
-                <img src='{iconlink}' class='glowing-image'/>
-            </a>
-        </div>
-    ''', unsafe_allow_html=True)
-
-        
         
 def YoloforLogo():
     
@@ -149,11 +89,6 @@ def YoloforLogo():
             - 🛠️ **Get Ready to Train**: With YOLOv8.1 and Flickr27, you'll be well-equipped to handle custom object detection tasks!
             """)
                 
-    iconlink = 'https://miro.medium.com/v2/resize:fit:4800/format:webp/1*x4eteo0X9VqrLEHAYyCX8Q.jpeg'
-    proflink = 'https://medium.com/@sushovansaha95/yolov8-1-on-custom-dataset-logo-detection-8915286999ef'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=80,size=80)
-
 
     uploaded_file = st.file_uploader("Upload an Image containing Logo", type=["jpg", "jpeg", "png"])
 
@@ -175,6 +110,10 @@ def YoloforLogo():
             
         with col2:
             st.image(prediction_image, caption="Predicted Image", width=200,use_column_width='auto')
+            
+    glowingYolo()
+            
+    
             
             
 def NewsQA():
@@ -201,16 +140,6 @@ def NewsQA():
             - 🎯 **Final QA**: Run the QA with the fine-tuned Gemma model and the retrieved context.
             """)
     
-    iconlink = 'https://pbs.twimg.com/media/GG3sJg7X0AEaNIq.jpg'
-    proflink = 'https://medium.com/@sushovansaha95/finetuning-gemma2b-instruct-for-qa-with-rag-6d879226157b'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=80,size=80)
-    
-
-    iconlink = 'https://aidrivensearch.com/wp-content/uploads/2023/02/T5-framework-Logo-280px.png'
-    proflink = 'https://github.com/ambideXtrous9/MTP-News-Article-based-Question-Answering-System'
-    
-    glowingLogo(href=proflink,iconlink=iconlink,bpos=80,rpos=200,size=80)
+    glowingLLM()
     
     
-
