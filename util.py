@@ -25,7 +25,7 @@ def Social(sidebarPos = False,heading = None):
 
 def HomePage():
     
-    st.title(":blue[My Portfolio] :sunglasses:")
+    st.title(":blue[My Portfolio] 🤓")
     
     
     gif_path = 'thor.gif'
@@ -36,7 +36,7 @@ def HomePage():
     
     # Display "About Me" text in the right column
     with col2:
-        st.subheader("About Me")
+        st.subheader("🌱 About Me")
         st.write("""
         👋 Hi there! I'm **Sushovan Saha**, a Machine Learning (ML) enthusiast specializing in **Natural Language Processing (NLP)** and **Computer Vision (CV)**. 
         I did my M.Tech in Data Science from **IIT Guwahati**. I am also a **Kaggle Notebook Expert**.
