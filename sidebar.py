@@ -8,6 +8,7 @@ def navigate(page):
 
 def SideBar():
     # Sidebar layout with navigation
+    
     with st.sidebar:
         
         st.image("booms.png", use_column_width=True)
@@ -28,16 +29,18 @@ def SideBar():
         
         if st.button("🎃 Home"):
             navigate("Home")
-            
-        if st.button("🧠 News QA System using LLM"):
-            navigate("newsqa")
         
         if st.button("🚀 Yolo for Logo"):
             navigate("yolologo")
             
+        if st.button("🧠 News QA System using LLM"):
+            navigate("newsqa")
             
-        if st.button("🐙 GitHub Stats"):
-            navigate("github_stats")
+        if st.button("🐙 Image Classifier"):
+            navigate("image_classifer")
+            
+        if st.button("🐙 Play with Cluster"):
+            navigate("clusterplay")
             
         if st.button("🌐 Social"):
             navigate("Social")

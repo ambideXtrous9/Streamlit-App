@@ -22,20 +22,24 @@ def navigator():
 
     # Page content based on the selected menu item
     elif page == "yolologo":
-        st.title(":rainbow[YOLO for Logo!] :sunglasses:")
+        st.title("🚀:rainbow[YOLO for Logo!] :sunglasses:")
         YoloforLogo()
-
-    elif page == "github_stats":
-        GitHubStats()
         
-
+    elif page == "newsqa":
+        st.title("📚:rainbow[News QA System using LLM] :sunglasses:")
+        NewsQA()
+        
+    elif page == "image_classifer":
+        st.title("🚀:rainbow[Image Classification ] :sunglasses:")
+        st.subheader("Coming Soon ..")
+        
+    elif page == "clusterplay":
+        st.title("🐙:rainbow[Play with Clusters] :sunglasses:")
+        st.subheader("Coming Soon ..")
+        
     elif page == "Social":
         Social(sidebarPos=False,heading="Social")
 
-
-    elif page == "newsqa":
-        st.title(":rainbow[⚙️ News QA System using LLM] :sunglasses:")
-        NewsQA()
         
 
     else:
