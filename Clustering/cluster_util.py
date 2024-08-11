@@ -42,7 +42,7 @@ def Cluster():
                 kfig = KDistGraph()
                 st.plotly_chart(kfig)
                 
-                st.write('''🧠 Now chnage the eps!''')
+                st.write('''🧠 Now change the eps and see the result!''')
                 
             elif eps > 5 and eps < 30 :
                 st.write('''💡 Change eps till 30 and see the result!''')
