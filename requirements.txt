@@ -8,3 +8,4 @@ ultralytics
 plotly
 math
 matplotlib
+scikit-learn
