@@ -157,3 +157,50 @@ def glowingLLM():
             {t5}
         </div>
     ''', unsafe_allow_html=True)
+
+
+
+
+def glowingCluster():
+    
+    iconlink = 'https://media.licdn.com/dms/image/C4E12AQGopXR2OLgA9Q/article-cover_image-shrink_600_2000/0/1537440291948?e=2147483647&v=beta&t=ciX9-639Lwc27E74CNPBKN2gx9hwRr5-b1b8y2sLNOQ'
+    proflink = 'https://github.com/ambideXtrous9/Learning-Python/blob/main/ML%20and%20NN/Clustering.ipynb'
+    
+    Yolo = glowingLogo(proflink, iconlink, size=50, R=100)
+   
+    # Combine all logos into a footer
+    st.markdown(f'''
+        <style>
+        @keyframes glow {{
+            0% {{ box-shadow: 0 0 10px 5px rgba(64, 224, 208, 0.8); }}
+            50% {{ box-shadow: 0 0 20px 10px rgba(64, 224, 208, 1); }}
+            100% {{ box-shadow: 0 0 10px 5px rgba(64, 224, 208, 0.8); }}
+        }}
+
+        .glowing-image {{
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            animation: glow 2s infinite;
+        }}
+
+        .footer {{
+            display: flex;
+            justify-content: right;
+            gap: 50px;
+            margin-top: 50px;
+            padding: 10px;
+            width: 100%;
+            position: relative;
+            bottom: 0;
+        }}
+
+        .inner-container {{
+            display: inline-block;
+        }}
+        </style>
+
+        <div class="footer">
+            {Yolo}
+        </div>
+    ''', unsafe_allow_html=True)

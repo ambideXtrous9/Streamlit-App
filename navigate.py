@@ -1,6 +1,6 @@
 import streamlit as st 
 from util import GitHubStats, HomePage, Social, YoloforLogo, NewsQA
-
+from Clustering.cluster_util import showData,Cluster
 
 def navigator():
 
@@ -35,7 +35,7 @@ def navigator():
         
     elif page == "clusterplay":
         st.title("🐙:rainbow[Play with Clusters] :sunglasses:")
-        st.subheader("Coming Soon ..")
+        Cluster()
         
     elif page == "Social":
         Social(sidebarPos=False,heading="Social")
