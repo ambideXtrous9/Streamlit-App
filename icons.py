@@ -204,3 +204,50 @@ def glowingCluster():
             {Yolo}
         </div>
     ''', unsafe_allow_html=True)
+    
+    
+def glowingImgClassifier():
+    
+    iconlink = 'https://img.freepik.com/premium-photo/artificial-intelligence-neural-networks-background_1106493-34240.jpg'
+    proflink = 'https://github.com/ambideXtrous9/Brand-Logo-Classification-using-TransferLearning-Flickr27/tree/main/Final%20Model'
+    
+    Yolo = glowingLogo(proflink, iconlink, size=50, R=100)
+   
+    # Combine all logos into a footer
+    st.markdown(f'''
+        <style>
+        @keyframes glow {{
+            0% {{ box-shadow: 0 0 10px 5px rgba(64, 224, 208, 0.8); }}
+            50% {{ box-shadow: 0 0 20px 10px rgba(64, 224, 208, 1); }}
+            100% {{ box-shadow: 0 0 10px 5px rgba(64, 224, 208, 0.8); }}
+        }}
+
+        .glowing-image {{
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            animation: glow 2s infinite;
+        }}
+
+        .footer {{
+            display: flex;
+            justify-content: right;
+            gap: 50px;
+            margin-top: 50px;
+            padding: 10px;
+            width: 100%;
+            position: relative;
+            bottom: 0;
+        }}
+
+        .inner-container {{
+            display: inline-block;
+        }}
+        </style>
+
+        <div class="footer">
+            {Yolo}
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    

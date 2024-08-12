@@ -36,7 +36,7 @@ def SideBar():
         if st.button("🧠 News QA System using LLM"):
             navigate("newsqa")
             
-        if st.button("🐙 Image Classifier"):
+        if st.button("🏆 Play with Image Classifier"):
             navigate("image_classifer")
             
         if st.button("🐙 Play with Cluster"):

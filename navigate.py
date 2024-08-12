@@ -1,6 +1,7 @@
 import streamlit as st 
 from util import GitHubStats, HomePage, Social, YoloforLogo, NewsQA
 from Clustering.cluster_util import showData,Cluster
+from ImageClassifier.classifier import model_card
 
 def navigator():
 
@@ -31,7 +32,7 @@ def navigator():
         
     elif page == "image_classifer":
         st.title("🚀:rainbow[Image Classification ] :sunglasses:")
-        st.subheader("Coming Soon ..")
+        model_card()
         
     elif page == "clusterplay":
         st.title("🐙:rainbow[Play with Clusters] :sunglasses:")
