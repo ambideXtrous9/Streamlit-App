@@ -2,55 +2,77 @@ import streamlit as st
 from Clustering.clusterapp import PlotData,kmeans,DBScan,KDistGraph
 from icons import glowingCluster
 
+
 def showData():
     fig = PlotData()
     # Display in Streamlit
     st.plotly_chart(fig, use_container_width=True)
 
 
+
 def Cluster():
-    
+    # Display the data
     showData()
     
-    selected_option = st.radio("Choose Clustering Algorithm", ("K-Means", "DBSCAN"))
-
+    # Store selected option in session state
+    if 'selected_option' not in st.session_state:
+        st.session_state.selected_option = "K-Means"
+        
+    # Store clustering parameters in session state
+    if 'n_clusters' not in st.session_state:
+        st.session_state.n_clusters = 3
+    if 'eps' not in st.session_state:
+        st.session_state.eps = 5
+    
+    # Option to choose clustering algorithm
+    selected_option = st.radio("Choose Clustering Algorithm", ("K-Means", "DBSCAN"), key='algorithm_radio')
+    st.session_state.selected_option = selected_option
+    
     if selected_option == "K-Means":
         # Slider for number of clusters
-        n_clusters = st.slider("Number of clusters", 1, 10, 3)
+        n_clusters = st.slider("Number of clusters", 1, 10, st.session_state.n_clusters)
+        st.session_state.n_clusters = n_clusters
         
-        # Run button
-        if st.button("Run K-Means"):
-            fig = kmeans(n_clusters)
-            st.plotly_chart(fig,use_container_width=True)
-            
+        # Run K-Means directly when slider changes
+        fig = kmeans(st.session_state.n_clusters)
+        st.plotly_chart(fig, use_container_width=True)
+        st.write('''💡 Why don't you try DBSCAN..!!''')
+        
     elif selected_option == "DBSCAN":
-        eps = st.slider("Epsilon (distance threshold)", 1, 40, 5)
-    
-        # Run button
-        if st.button("Run DBSCAN"):
-            fig = DBScan(eps)
-            st.plotly_chart(fig)
-            
-            if eps <= 5 : 
-                st.write('''🌟 Interesting! If All the data points are now of same color which means they are treated as noise. 
+        # Slider for epsilon (distance threshold)
+        eps = st.slider("Epsilon (distance threshold)", 1, 40, st.session_state.eps)
+        st.session_state.eps = eps
+        
+        # Run DBSCAN directly when slider changes
+        fig = DBScan(st.session_state.eps)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Display additional information based on epsilon value
+        if eps <= 5: 
+            st.write('''🌟 Interesting! If all the data points are now of the same color, it means they are treated as noise. 
                          It is because the value of epsilon is very small and we didn’t optimize parameters. 
                          Therefore, we need to find the value of epsilon and minPoints and then train our model again.''')
-                
-                st.write('''💡 Would you like to see the K-Distance Graph?''')
-                
-                
-                kfig = KDistGraph()
-                st.plotly_chart(kfig)
-                
-                st.write('''🧠 Now change the eps and see the result!''')
-                
-            elif eps > 5 and eps < 30 :
-                st.write('''💡 Change eps till 30 and see the result!''')
             
-            elif eps >= 30 and eps<34:
-                st.write('''🚀 DBSCAN did its job..!!''')
-                
-            else:
-                st.write('''🛑 Don't go beyond..Outlier..!!''')
-                
+            # Option to see the K-Distance Graph
+            show_k_graph = st.radio('💡 Would you like to see the K-Distance Graph?', ('Yes', 'No'), index=1)
+            if show_k_graph == 'Yes':
+                kfig = KDistGraph()
+                st.plotly_chart(kfig, use_container_width=True)
+                st.write('''🧠 Now change the eps and see the result!''')
+        
+        elif eps > 5 and eps < 30:
+            # Option to see the K-Distance Graph
+            show_k_graph = st.radio('💡 Would you like to see the K-Distance Graph?', ('Yes', 'No'), index=1)
+            if show_k_graph == 'Yes':
+                kfig = KDistGraph()
+                st.plotly_chart(kfig, use_container_width=True)
+
+            st.write('''💡 Change eps till 30 and see the result!''')
+        
+        elif eps >= 30 and eps < 34:
+            st.write('''🚀 DBSCAN did its job..!!''')
+        
+        else:
+            st.write('''🛑 Don't go beyond.. Outlier..!!''')
+    
     glowingCluster()

@@ -8,3 +8,4 @@ ultralytics
 plotly
 matplotlib
 scikit-learn
+seaborn
