@@ -90,7 +90,7 @@ def YoloforLogo():
             """)
                 
 
-    uploaded_file = st.file_uploader("Upload an Image containing Logo", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Upload an Image containing Brand Logo", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
         

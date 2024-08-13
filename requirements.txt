@@ -9,3 +9,9 @@ plotly
 matplotlib
 scikit-learn
 seaborn
+pytorch_lightning
+lightning
+timm
+torchvision
+torch
+seaborn
