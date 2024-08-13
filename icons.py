@@ -209,7 +209,7 @@ def glowingCluster():
 def glowingImgClassifier():
     
     iconlink = 'https://img.freepik.com/premium-photo/artificial-intelligence-neural-networks-background_1106493-34240.jpg'
-    proflink = 'https://github.com/ambideXtrous9/Brand-Logo-Classification-using-TransferLearning-Flickr27/tree/main/Final%20Model'
+    proflink = 'https://github.com/ambideXtrous9/Brand-Logo-Classification-using-TransferLearning-Flickr27'
     
     Yolo = glowingLogo(proflink, iconlink, size=50, R=100)
    
