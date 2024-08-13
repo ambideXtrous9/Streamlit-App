@@ -11,5 +11,6 @@ scikit-learn
 seaborn
 pytorch_lightning
 lightning
+timm
 torchvision
 torch
