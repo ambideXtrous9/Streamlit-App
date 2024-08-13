@@ -38,19 +38,19 @@ index_to_class = {v: k for k, v in class_labels.items()}
 
 def model_init():
     xcep_model = XceptionNet(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/Xception.ckpt')
+    checkpoint = torch.load('ImageClassifier/Xception.ckpt',map_location=torch.device('cpu'))
     xcep_model.load_state_dict(checkpoint['state_dict'])
     
     mobile_model = MobileNetV2(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/MobileNetV2.ckpt')
+    checkpoint = torch.load('ImageClassifier/MobileNetV2.ckpt',map_location=torch.device('cpu'))
     mobile_model.load_state_dict(checkpoint['state_dict'])
     
     incep_model = InceptionV3(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/InceptionV3.ckpt')
+    checkpoint = torch.load('ImageClassifier/InceptionV3.ckpt',map_location=torch.device('cpu'))
     incep_model.load_state_dict(checkpoint['state_dict'])
     
     effcent_model = EfficientNet(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/EfficientNet.ckpt')
+    checkpoint = torch.load('ImageClassifier/EfficientNet.ckpt',map_location=torch.device('cpu'))
     effcent_model.load_state_dict(checkpoint['state_dict'])
     
     return [("Xception",xcep_model),("InceptionV3",incep_model),("MobileNetV2", mobile_model),("EfficientNet" ,effcent_model)]
