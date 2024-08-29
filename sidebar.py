@@ -29,6 +29,10 @@ def SideBar():
         
         if st.button("🎃 Home"):
             navigate("Home")
+            
+        if st.button("💹 Stock Screener"):
+            navigate("stockscreener")
+            
         
         if st.button("🚀 Yolo for Logo"):
             navigate("yolologo")
@@ -42,6 +46,7 @@ def SideBar():
         if st.button("🐙 Play with Cluster"):
             navigate("clusterplay")
             
+        
         if st.button("🌐 Social"):
             navigate("Social")
             
