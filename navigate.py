@@ -2,6 +2,7 @@ import streamlit as st
 from util import GitHubStats, HomePage, Social, YoloforLogo, NewsQA
 from Clustering.cluster_util import showData,Cluster
 from ImageClassifier.classifier import model_card
+from StockScreener.screener import StockScan
 
 def navigator():
 
@@ -37,6 +38,12 @@ def navigator():
     elif page == "clusterplay":
         st.title("🐙:rainbow[Play with Clusters] :sunglasses:")
         Cluster()
+        
+    elif page == "stockscreener":
+        st.title("🚀:rainbow[Stock Screener]")
+        st.title("Range Breakout with Volume")
+        StockScan()
+        
         
     elif page == "Social":
         Social(sidebarPos=False,heading="Social")

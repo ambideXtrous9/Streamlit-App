@@ -15,3 +15,7 @@ timm
 torchvision
 torch
 seaborn
+beautifulsoup4
+niftystocks
+ta
+yfinance
