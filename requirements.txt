@@ -1,3 +1,4 @@
+streamlit
 pandas
 numpy
 requests
@@ -18,4 +19,6 @@ seaborn
 beautifulsoup4
 niftystocks
 ta
+mplchart
 yfinance
+mplfinance

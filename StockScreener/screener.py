@@ -7,6 +7,11 @@ import requests
 from bs4 import BeautifulSoup
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
+import mplfinance as mpf
+
+from StockScreener.mlpchart.mlpchart import chart
+
+import matplotlib.pyplot as plt
 
 
 def BreakoutVolume():
@@ -266,6 +271,7 @@ def plotChart(symbol):
                         close=df['Close'])])
     
     st.plotly_chart(fig, use_container_width=True)
+    
 
 
 # Helper function to convert percentage strings to floats
@@ -403,9 +409,12 @@ def StockScan():
         if option != None:
            fundainfo, shareholdnres = scrapper(option)
            companyDetails(fundainfo) 
+           chart(ticker=option)
            plotChart(option)
            analyze_financial_data(shareholdnres)
            plotShareholding(shareholdnres)
+           
+           
            
         
         
