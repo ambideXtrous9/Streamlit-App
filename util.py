@@ -6,6 +6,7 @@ from st_social_media_links import SocialMediaIcons
 from LogoYolo.inference import predict
 import cv2
 from PIL import Image
+from NewsQALLM.chatbot import ChatBot
 from icons import glowingSocial,glowingYolo,glowingLLM
 
 
@@ -141,5 +142,6 @@ def NewsQA():
             """)
     
     glowingLLM()
+    ChatBot()
     
     

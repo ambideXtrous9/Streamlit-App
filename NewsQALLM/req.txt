@@ -1,0 +1,5 @@
+langchain-community
+transformers
+sentence_transformers==2.2.2
+faiss-cpu
+
