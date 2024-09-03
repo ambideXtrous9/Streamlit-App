@@ -25,6 +25,6 @@ mplfinance
 langchain-community
 langchain-huggingface
 transformers
-sentence_transformers==2.2.2
+sentence_transformers
 faiss-cpu
 
