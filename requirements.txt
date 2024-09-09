@@ -3,7 +3,6 @@ pandas
 numpy
 requests
 st_social_media_links
-opencv-python-headless
 pillow
 ultralytics
 plotly

@@ -4,7 +4,6 @@ import numpy as np
 import requests
 from st_social_media_links import SocialMediaIcons
 from LogoYolo.inference import predict
-import cv2
 from PIL import Image
 from NewsQALLM.chatbot import ChatBot
 from icons import glowingSocial,glowingYolo,glowingLLM
@@ -95,12 +94,10 @@ def YoloforLogo():
 
     if uploaded_file is not None:
         
-        # Convert the uploaded file to an OpenCV image
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        opencv_image = cv2.imdecode(file_bytes, 1)
-        
+        uploaded_image = Image.open(uploaded_file)
+
         # Perform prediction
-        prediction_image = predict(opencv_image)
+        prediction_image = predict(uploaded_image)
         
         # Create two columns for side-by-side images
         col1, col2 = st.columns(2)
