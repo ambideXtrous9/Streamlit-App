@@ -8,6 +8,10 @@ from bs4 import BeautifulSoup
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import mplfinance as mpf
+from gnews import GNews
+
+# Initialize the GNews object
+google_news = GNews(language='en', period='30d',max_results=20)
 
 from StockScreener.mlpchart.mlpchart import chart
 
@@ -258,6 +262,26 @@ def companyDetails(company_data):
     st.markdown(f"*{company_data['About']}*")
 
 
+def CompanyNews(name):
+    # Fetch news articles
+    news = google_news.get_news(name)
+
+    # Display news titles with URLs in Streamlit
+    st.title(f"Latest News on {name}")
+
+    if news:
+        for article in news:
+            
+            title = article.get('title', 'No title available')
+            url = article.get('url', '#')
+            
+            # Display the title as a clickable link
+            st.markdown(f"[{title}]({url})")
+    else:
+        st.write("No news found for this topic.")
+    
+
+
 def plotChart(symbol):
     stock = yf.Ticker(symbol)
 
@@ -311,26 +335,31 @@ def check_status_public(values):
 def analyze_financial_data(data):
     # Function to check and return the status with appropriate coloring
     data = {key: convert_to_float(value) for key, value in data.items()}
+    
+    col1, col2 = st.columns(2)
+    
+    
+    with col1:
+        # Check Quarterly and Yearly data
+        st.subheader("1. Quarterly Profit Status:")
+        check_status(data['Quarter'])
 
-    # Check Quarterly and Yearly data
-    st.subheader("Quarterly Profit Status:")
-    check_status(data['Quarter'])
+        st.subheader("2. Yearly Profit Status:")
+        check_status(data['Yearly'])
 
-    st.subheader("Yearly Profit Status:")
-    check_status(data['Yearly'])
+        # Check Shareholding data (Promoters, DII, FII, Public)
+        st.subheader("3. Promoters Shareholding Status:")
+        check_status(data['Promoters'])
+        
+    with col2:
+        st.subheader("4. DII Shareholding Status:")
+        check_status(data['DII'])
 
-    # Check Shareholding data (Promoters, DII, FII, Public)
-    st.subheader("Promoters Shareholding Status:")
-    check_status(data['Promoters'])
+        st.subheader("5. FII Shareholding Status:")
+        check_status(data['FII'])
 
-    st.subheader("DII Shareholding Status:")
-    check_status(data['DII'])
-
-    st.subheader("FII Shareholding Status:")
-    check_status(data['FII'])
-
-    st.subheader("Public Shareholding Status:")
-    check_status_public(data['Public'])
+        st.subheader("6. Public Shareholding Status:")
+        check_status_public(data['Public'])
 
 def plotShareholding(shareholdnres):
 
@@ -413,6 +442,7 @@ def StockScan():
            plotChart(option)
            analyze_financial_data(shareholdnres)
            plotShareholding(shareholdnres)
+           CompanyNews(fundainfo['Company Name'])
            
            
            
