@@ -27,4 +27,6 @@ langchain-huggingface
 transformers
 sentence_transformers
 faiss-cpu
-
+gnews
+linkpreview
+googlenewsdecoder
