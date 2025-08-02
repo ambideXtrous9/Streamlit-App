@@ -10,10 +10,15 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from transformers import AutoTokenizer, AutoModel
 from langchain_core.tools import tool
 import torch
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
 import streamlit as st 
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os 
+
+conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
+checkpointer = SqliteSaver(conn)
 
 load_dotenv()
 

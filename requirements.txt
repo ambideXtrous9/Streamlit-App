@@ -18,6 +18,8 @@ torch
 seaborn
 beautifulsoup4
 niftystocks
+streamlit-authenticator
+bcrypt
 ta
 mplchart
 yfinance
@@ -37,3 +39,4 @@ langchain-community
 langchain-groq 
 sentence-transformers
 python-dotenv
+langgraph-checkpoint-sqlite

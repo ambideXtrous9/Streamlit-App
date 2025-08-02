@@ -1,0 +1,13 @@
+cookie:
+  expiry_days: 30
+  key: hp_agent_auth
+  name: hp_agent_cookie
+credentials:
+  usernames:
+    admin:
+      email: admin@example.com
+      name: Admin User
+      password: $2b$12$T0kwGt/p8qwNLdnBvimyZODU15T0MgCVVhN18virc5CQ3.G7nZBzC
+preauthorized:
+  emails:
+  - admin@example.com
