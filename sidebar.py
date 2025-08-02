@@ -31,10 +31,22 @@ def SideBar():
             navigate("Home")
             
         if st.button("💹 AI Stock Research Agent"):
-            navigate("stockscreener")
+            if st.session_state.get('logged_in'):
+                navigate("stockscreener")
+            else:
+                st.session_state['page'] = 'login'
+                st.session_state['show_login'] = True
+                st.session_state['show_signup'] = False
+                st.rerun()
 
         if st.button("🔮Agent : Harry Potter X Mythology"):
-            navigate("newsqa")
+            if st.session_state.get('logged_in'):
+                navigate("newsqa")
+            else:
+                st.session_state['page'] = 'login'
+                st.session_state['show_login'] = True
+                st.session_state['show_signup'] = False
+                st.rerun()
             
         if st.button("🚀 Yolo for Logo"):
             navigate("yolologo")
@@ -53,8 +65,19 @@ def SideBar():
                 st.session_state['logged_in'] = False
                 st.rerun()
         else:
-            if st.button("Login"):
-                navigate("login")
+            login_col, signup_col = st.columns(2)
+            with login_col:
+                if st.button("Login"):
+                    st.session_state['page'] = 'login'
+                    st.session_state['show_login'] = True
+                    st.session_state['show_signup'] = False
+                    st.rerun()
+            with signup_col:
+                if st.button("Signup"):
+                    st.session_state['page'] = 'signup'
+                    st.session_state['show_signup'] = True
+                    st.session_state['show_login'] = False
+                    st.rerun()
             
         
 

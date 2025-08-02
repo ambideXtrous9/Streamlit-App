@@ -5,6 +5,7 @@ from LogoYolo.inference import predict
 from PIL import Image
 from NewsQALLM.chatbot import ChatBot
 from icons import glowingSocial,glowingYolo
+from login import login_page
 
 
 def Social(sidebarPos = False,heading = None):
@@ -22,41 +23,44 @@ def Social(sidebarPos = False,heading = None):
     social_media_icons.render(sidebar=sidebarPos, justify_content="center")
 
 def HomePage():
-    
-    st.title(":blue[My Portfolio] 🤓")
-    
-    
-    gif_path = 'thor.gif'
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.image(gif_path)
-    
-    # Display "About Me" text in the right column
-    with col2:
-        st.subheader("🌱 About Me")
-        st.write("""
-        👋 Hi there! I'm **Sushovan Saha**, a Machine Learning (ML) enthusiast specializing in **Natural Language Processing (NLP)** and **Computer Vision (CV)**.  
-        I did my M.Tech in Data Science from **IIT Guwahati**. I am also a **Kaggle Notebook Expert**.
+    if 'page' not in st.session_state:
+        st.session_state['page'] = 'home'
 
-        🌟 I'm passionate about exploring the possibilities of ML to solve real-world problems and improve people's lives.  
-        I love working on challenging projects that require me to stretch my abilities and learn new things.
+    
 
-        ⚙️ My technical toolkit includes:
-        - **LLMs (Large Language Models)** and frameworks like **LangChain**
-        - **LangGraph** for building composable pipelines
-        - **Agents**–driven architectures
-        - **Crew AI** for collaborative AI workflows
-        - Advanced **NLP** and **CV** techniques
-
-        📚 In my free time, I like to contribute on **Kaggle**, write ML blogs on **Medium**, and read industry updates to stay ahead in the field.
-    """)
-
+    if st.session_state['page'] == 'home':
+        st.title(":blue[My Portfolio] 🤓")
         
-    glowingSocial()
+        gif_path = 'thor.gif'
+        col1_home, col2_home = st.columns([1, 2])
+        
+        with col1_home:
+            st.image(gif_path)
+        
+        # Display "About Me" text in the right column
+        with col2_home:
+            st.subheader("🌱 About Me")
+            st.write("""
+            👋 Hi there! I'm **Sushovan Saha**, a Machine Learning (ML) enthusiast specializing in **Natural Language Processing (NLP)** and **Computer Vision (CV)**.  
+            I did my M.Tech in Data Science from **IIT Guwahati**. I am also a **Kaggle Notebook Expert**.
 
-    if not st.session_state.get('logged_in'):
+            🌟 I'm passionate about exploring the possibilities of ML to solve real-world problems and improve people's lives.  
+            I love working on challenging projects that require me to stretch my abilities and learn new things.
+
+            ⚙️ My technical toolkit includes:
+            - **LLMs (Large Language Models)** and frameworks like **LangChain**
+            - **LangGraph** for building composable pipelines
+            - **Agents**–driven architectures
+            - **Crew AI** for collaborative AI workflows
+            - Advanced **NLP** and **CV** techniques
+
+            📚 In my free time, I like to contribute on **Kaggle**, write ML blogs on **Medium**, and read industry updates to stay ahead in the field.
+        """)
+            
+        glowingSocial()
+    elif st.session_state['page'] == 'login' or st.session_state['page'] == 'signup':
         login_page()
+
     
     
     
