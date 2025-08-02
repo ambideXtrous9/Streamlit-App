@@ -557,19 +557,19 @@ def analyze_financial_data(data):
         st.subheader("1. Quarterly Profit Status:")
         check_status(data.get('Quarter', []))
 
-        st.subheader("2. Yearly Profit Status:")
-        check_status(data.get('Yearly', []))
+        st.subheader("3. FII Shareholding Status:")
+        check_status(data.get('FII', []))
 
         # Check Shareholding data (Promoters, DII, FII, Public)
-        st.subheader("3. Promoters Shareholding Status:")
+        st.subheader("5. Promoters Shareholding Status:")
         check_status(data.get('Promoters', []))
         
     with col2:
+        st.subheader("2. Yearly Profit Status:")
+        check_status(data.get('Yearly', []))
+
         st.subheader("4. DII Shareholding Status:")
         check_status(data.get('DII', []))
-
-        st.subheader("5. FII Shareholding Status:")
-        check_status(data.get('FII', []))
 
         st.subheader("6. Public Shareholding Status:")
         check_status_public(data['Public'])
