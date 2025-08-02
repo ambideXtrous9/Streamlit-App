@@ -47,6 +47,14 @@ def SideBar():
             
         if st.button("🌐 Social"):
             navigate("Social")
+
+        if st.session_state.get('logged_in'):
+            if st.button("Logout"):
+                st.session_state['logged_in'] = False
+                st.rerun()
+        else:
+            if st.button("Login"):
+                navigate("login")
             
         
 

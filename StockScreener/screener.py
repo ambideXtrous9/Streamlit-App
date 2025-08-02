@@ -15,6 +15,11 @@ import ta
 import os 
 import re
 
+def StockScan():
+    if not st.session_state.get('logged_in'):
+        st.warning("Please log in to access this feature.")
+        return
+
 load_dotenv()
 
 model_name = "qwen/qwen3-32b"

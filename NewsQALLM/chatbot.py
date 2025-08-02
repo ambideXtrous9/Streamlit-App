@@ -6,6 +6,9 @@ app = graph.compile()
 
 
 def ChatBot():
+    if not st.session_state.get('logged_in'):
+        st.warning("Please log in to access this feature.")
+        return
 
     # Initialize chat history
     if "messages" not in st.session_state:

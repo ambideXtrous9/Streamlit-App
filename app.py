@@ -19,14 +19,16 @@ from sidebar import SideBar
 from navigate import navigator
 
 
-
 torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)] 
 
 # or simply:
 # torch.classes.__path__ = []
 
-SideBar()
+def main():
+    SideBar()
+    navigator()
 
-navigator()
+if __name__ == '__main__':
+    main()
 
 

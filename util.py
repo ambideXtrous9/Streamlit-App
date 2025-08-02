@@ -54,6 +54,9 @@ def HomePage():
 
         
     glowingSocial()
+
+    if not st.session_state.get('logged_in'):
+        login_page()
     
     
     
