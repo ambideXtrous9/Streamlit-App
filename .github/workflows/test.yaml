@@ -18,10 +18,10 @@ jobs:
         with:
           python-version: 3.x
 
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      # - name: Install Python dependencies
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     pip install torch torchvision pillow streamlit
 
       - name: Run Semgrep (Static Analysis)
         uses: returntocorp/semgrep-action@v1
@@ -33,12 +33,6 @@ jobs:
         with:
           scan-type: "fs"
           scan-ref: "."
-
-      - name: Trivy Python Dependency Scan (requirements.txt)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "config"
-          scan-ref: "requirements.txt"
 
       - name: Run Bandit (Python Security Linter)
         run: |

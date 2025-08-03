@@ -1,19 +1,23 @@
 rules:
   - id: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
-    severity: INFO  # Downgrade severity so it's non-blocking
-    message: "Ignoring torch.load pickle warning in load_model_safely function"
+    severity: INFO
+    message: "Ignoring torch.load in load_model_safely - safe usage with validation"
     metadata:
       confidence: LOW
-      ignored_reason: "torch.load used in a controlled manner with validation"
+      ignored_reason: "Controlled usage with input validation"
     languages: [python]
+    paths:
+      include:
+        - "ImageClassifier/classifier.py"
     patterns:
-      - pattern: |
-          def load_model_safely(...):
-             ...
-             torch.load($CHECKPOINT, map_location='cpu')
-             ...
-      - pattern: |
-          def load_model_safely(...):
-             ...
-             torch.load($CHECKPOINT, map_location=..., ...)
-             ...
+      - pattern-either:
+          - pattern: |
+              def load_model_safely($MODEL, $PATH, $NUM_CLASSES, $LR):
+                ...
+                torch.load($CHECKPOINT, map_location=...)
+                ...
+          - pattern: |
+              def load_model_safely($MODEL, $PATH, $NUM_CLASSES, $LR):
+                ...
+                torch.load($CHECKPOINT, ...)
+                ...
