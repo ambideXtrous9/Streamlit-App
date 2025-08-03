@@ -1,10 +1,19 @@
 rules:
   - id: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
-    severity: INFO  # Downgrade severity so it’s non-blocking
-    message: "Ignoring torch.load pickle warning due to reviewed and controlled usage."
+    severity: INFO  # Downgrade severity so it's non-blocking
+    message: "Ignoring torch.load pickle warning in load_model_safely function"
     metadata:
       confidence: LOW
-      ignored_reason: "torch.load used safely with controlled input."
+      ignored_reason: "torch.load used in a controlled manner with validation"
     languages: [python]
     patterns:
-      - pattern: torch.load(...)
+      - pattern: |
+          def load_model_safely(...):
+             ...
+             torch.load($CHECKPOINT, map_location='cpu')
+             ...
+      - pattern: |
+          def load_model_safely(...):
+             ...
+             torch.load($CHECKPOINT, map_location=..., ...)
+             ...
