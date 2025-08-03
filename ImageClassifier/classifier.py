@@ -1,5 +1,6 @@
 import torch
 import streamlit as st 
+import pickle
 from torchvision import transforms
 from PIL import Image
 from ImageClassifier import config
@@ -36,22 +37,30 @@ class_labels = {
 index_to_class = {v: k for k, v in class_labels.items()}
 
 
+def load_model_safely(model_class, checkpoint_path, num_classes, lr):
+    """Safely load model state dict from checkpoint"""
+    model = model_class(num_classes=num_classes, lr=lr)
+    try:
+        # First try loading with weights_only=True
+        checkpoint = torch.load(checkpoint_path, 
+                              map_location=torch.device('cpu'),
+                              weights_only=True)
+        model.load_state_dict(checkpoint['state_dict'])
+    except (RuntimeError, TypeError, pickle.UnpicklingError) as e:
+        print(f"Warning: Could not load with weights_only=True for {checkpoint_path}. Error: {e}")
+        # Fallback to direct state dict loading with additional safety checks
+        state_dict = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+        if not isinstance(state_dict, dict) or 'state_dict' not in state_dict:
+            raise ValueError("Invalid checkpoint format")
+        model.load_state_dict(state_dict['state_dict'])
+    return model
+
 def model_init():
-    xcep_model = XceptionNet(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/Xception.ckpt', map_location=torch.device('cpu'), weights_only=True)
-    xcep_model.load_state_dict(checkpoint['state_dict'])
-    
-    mobile_model = MobileNetV2(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/MobileNetV2.ckpt', map_location=torch.device('cpu'), weights_only=True)
-    mobile_model.load_state_dict(checkpoint['state_dict'])
-    
-    incep_model = InceptionV3(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/InceptionV3.ckpt', map_location=torch.device('cpu'), weights_only=True)
-    incep_model.load_state_dict(checkpoint['state_dict'])
-    
-    effcent_model = EfficientNet(num_classes=config.NUM_CLASSES,lr=config.LR)
-    checkpoint = torch.load('ImageClassifier/EfficientNet.ckpt', map_location=torch.device('cpu'), weights_only=True)
-    effcent_model.load_state_dict(checkpoint['state_dict'])
+    # Load each model with safe loading
+    xcep_model = load_model_safely(XceptionNet, 'ImageClassifier/Xception.ckpt', config.NUM_CLASSES, config.LR)
+    mobile_model = load_model_safely(MobileNetV2, 'ImageClassifier/MobileNetV2.ckpt', config.NUM_CLASSES, config.LR)
+    incep_model = load_model_safely(InceptionV3, 'ImageClassifier/InceptionV3.ckpt', config.NUM_CLASSES, config.LR)
+    effcent_model = load_model_safely(EfficientNet, 'ImageClassifier/EfficientNet.ckpt', config.NUM_CLASSES, config.LR)
     
     return [("Xception",xcep_model),("InceptionV3",incep_model),("MobileNetV2", mobile_model),("EfficientNet" ,effcent_model)]
     
