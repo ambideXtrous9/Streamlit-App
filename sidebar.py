@@ -3,7 +3,8 @@ from util import Social
 
 # Function to manage navigation
 def navigate(page):
-    st.query_params["page"]=page
+    st.session_state['page'] = page
+    st.query_params['page'] = page
 
 
 def SideBar():
@@ -29,12 +30,27 @@ def SideBar():
         
         if st.button("🎃 Home"):
             navigate("Home")
+            st.rerun()
             
         if st.button("💹 AI Stock Research Agent"):
-            navigate("stockscreener")
+            if st.session_state.get('logged_in'):
+                navigate("stockscreener")
+            else:
+                st.session_state['redirect_after_login'] = "stockscreener"
+                st.session_state['page'] = 'login'
+                st.session_state['show_login'] = True
+                st.session_state['show_signup'] = False
+                st.rerun()
 
         if st.button("🔮Agent : Harry Potter X Mythology"):
-            navigate("newsqa")
+            if st.session_state.get('logged_in'):
+                navigate("newsqa")
+            else:
+                st.session_state['redirect_after_login'] = "newsqa"
+                st.session_state['page'] = 'login'
+                st.session_state['show_login'] = True
+                st.session_state['show_signup'] = False
+                st.rerun()
             
         if st.button("🚀 Yolo for Logo"):
             navigate("yolologo")
@@ -47,6 +63,31 @@ def SideBar():
             
         if st.button("🌐 Social"):
             navigate("Social")
+
+        if st.session_state.get('logged_in'):
+            if st.button("Logout"):
+                st.session_state['logged_in'] = False
+                st.session_state['username'] = None
+                st.session_state['page'] = 'home' # Reset page to home on logout
+                if "logged_in_user" in st.query_params:
+                    del st.query_params["logged_in_user"]
+                if "page" in st.query_params:
+                    del st.query_params["page"]
+                st.rerun()
+        else:
+            login_col, signup_col = st.columns(2)
+            with login_col:
+                if st.button("Login"):
+                    st.session_state['page'] = 'login'
+                    st.session_state['show_login'] = True
+                    st.session_state['show_signup'] = False
+                    st.rerun()
+            with signup_col:
+                if st.button("Signup"):
+                    st.session_state['page'] = 'signup'
+                    st.session_state['show_signup'] = True
+                    st.session_state['show_login'] = False
+                    st.rerun()
             
         
 

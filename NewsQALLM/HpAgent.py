@@ -79,8 +79,17 @@ embeddings = HuggingFaceEmbeddings(
 
 
 # Load BGE reranker model and tokenizer once (outside the function)
-reranker_tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-reranker-base")
-reranker_model = AutoModel.from_pretrained("BAAI/bge-reranker-base")
+MODEL_REVISION = "main"  # or a specific commit hash like "a1b2c3d..."
+reranker_tokenizer = AutoTokenizer.from_pretrained(
+    "BAAI/bge-reranker-base",
+    revision=MODEL_REVISION,
+    trust_remote_code=False
+)
+reranker_model = AutoModel.from_pretrained(
+    "BAAI/bge-reranker-base",
+    revision=MODEL_REVISION,
+    trust_remote_code=False
+)
 
 
 vectordb_vectr = FAISS.load_local(

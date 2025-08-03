@@ -1,18 +1,21 @@
 import streamlit as st 
-from util import GitHubStats, HomePage, Social, YoloforLogo, NewsQA
+from util import GitHubStats, HomePage, Social, YoloforLogo
 from Clustering.cluster_util import showData,Cluster
 from ImageClassifier.classifier import model_card
 from StockScreener.screener import StockScan
+from NewsQALLM.chatbot import ChatBot
+from login import login_page
 
 def navigator():
 
     # Get the current page from the query parameters
     
-    page = "page"
-    
-    if page in st.query_params.keys():
+    if 'page' in st.session_state:
+        page = st.session_state['page']
+    elif "page" in st.query_params.keys():
         page = st.query_params["page"]
-    else: page = "home"
+    else:
+        page = "home"
 
     # Display content based on the selected menu item
     if page == "home":
@@ -28,8 +31,11 @@ def navigator():
         YoloforLogo()
         
     elif page == "newsqa":
-        st.title("🪄:rainbow[Harry Potter X  Mythology]")
-        NewsQA()
+        if st.session_state.get('logged_in'):
+            st.title("🪄:rainbow[Harry Potter X  Mythology]")
+            ChatBot()
+        else:
+            login_page()
         
     elif page == "image_classifer":
         st.title("🚀:rainbow[Image Classification ] :sunglasses:")
@@ -40,9 +46,12 @@ def navigator():
         Cluster()
         
     elif page == "stockscreener":
-        st.title("🚀:rainbow[Stock Screener]")
-        st.title("Range Breakout with Volume")
-        StockScan()
+        if st.session_state.get('logged_in'):
+            st.title("🚀:rainbow[Stock Screener]")
+            st.title("Range Breakout with Volume")
+            StockScan()
+        else:
+            login_page()
         
         
     elif page == "Social":
@@ -50,6 +59,5 @@ def navigator():
 
         
 
-    else:
-        st.subheader("Home Page")
-        st.write("Welcome to the Streamlit Portfolio. Use the sidebar to navigate.")
+    elif page == "login":
+        login_page()

@@ -5,6 +5,7 @@ from LogoYolo.inference import predict
 from PIL import Image
 from NewsQALLM.chatbot import ChatBot
 from icons import glowingSocial,glowingYolo
+from login import login_page
 
 
 def Social(sidebarPos = False,heading = None):
@@ -22,18 +23,16 @@ def Social(sidebarPos = False,heading = None):
     social_media_icons.render(sidebar=sidebarPos, justify_content="center")
 
 def HomePage():
-    
     st.title(":blue[My Portfolio] 🤓")
     
-    
     gif_path = 'thor.gif'
-    col1, col2 = st.columns([1, 2])
+    col1_home, col2_home = st.columns([1, 2])
     
-    with col1:
+    with col1_home:
         st.image(gif_path)
     
     # Display "About Me" text in the right column
-    with col2:
+    with col2_home:
         st.subheader("🌱 About Me")
         st.write("""
         👋 Hi there! I'm **Sushovan Saha**, a Machine Learning (ML) enthusiast specializing in **Natural Language Processing (NLP)** and **Computer Vision (CV)**.  
@@ -51,9 +50,9 @@ def HomePage():
 
         📚 In my free time, I like to contribute on **Kaggle**, write ML blogs on **Medium**, and read industry updates to stay ahead in the field.
     """)
-
         
     glowingSocial()
+
     
     
     
@@ -62,7 +61,7 @@ def HomePage():
 def GitHubStats():
     st.title(":rainbow[GitHub Stats]")
     username = "ambideXtrous9"  # Replace with your GitHub username
-    response = requests.get(f"https://api.github.com/users/{username}")
+    response = requests.get(f"https://api.github.com/users/{username}", timeout=10)  # 10 second timeout
 
     if response.status_code == 200:
         user_data = response.json()

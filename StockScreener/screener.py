@@ -15,6 +15,11 @@ import ta
 import os 
 import re
 
+def StockScan():
+    if not st.session_state.get('logged_in'):
+        st.warning("Please log in to access this feature.")
+        return
+
 load_dotenv()
 
 model_name = "qwen/qwen3-32b"
@@ -421,7 +426,7 @@ def scrapper(stock_ticker):
 
     url = f"https://www.screener.in/company/{stock_ticker}/"
 
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)  # 10 second timeout
 
     if response.status_code == 200:
         print("Successfully fetched the webpage")
@@ -552,19 +557,19 @@ def analyze_financial_data(data):
         st.subheader("1. Quarterly Profit Status:")
         check_status(data.get('Quarter', []))
 
-        st.subheader("2. Yearly Profit Status:")
-        check_status(data.get('Yearly', []))
+        st.subheader("3. FII Shareholding Status:")
+        check_status(data.get('FII', []))
 
         # Check Shareholding data (Promoters, DII, FII, Public)
-        st.subheader("3. Promoters Shareholding Status:")
+        st.subheader("5. Promoters Shareholding Status:")
         check_status(data.get('Promoters', []))
         
     with col2:
+        st.subheader("2. Yearly Profit Status:")
+        check_status(data.get('Yearly', []))
+
         st.subheader("4. DII Shareholding Status:")
         check_status(data.get('DII', []))
-
-        st.subheader("5. FII Shareholding Status:")
-        check_status(data.get('FII', []))
 
         st.subheader("6. Public Shareholding Status:")
         check_status_public(data['Public'])
