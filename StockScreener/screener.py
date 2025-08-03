@@ -426,7 +426,7 @@ def scrapper(stock_ticker):
 
     url = f"https://www.screener.in/company/{stock_ticker}/"
 
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)  # 10 second timeout
 
     if response.status_code == 200:
         print("Successfully fetched the webpage")

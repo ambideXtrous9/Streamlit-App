@@ -61,7 +61,7 @@ def HomePage():
 def GitHubStats():
     st.title(":rainbow[GitHub Stats]")
     username = "ambideXtrous9"  # Replace with your GitHub username
-    response = requests.get(f"https://api.github.com/users/{username}")
+    response = requests.get(f"https://api.github.com/users/{username}", timeout=10)  # 10 second timeout
 
     if response.status_code == 200:
         user_data = response.json()
