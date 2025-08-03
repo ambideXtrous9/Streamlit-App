@@ -4,6 +4,7 @@ from util import Social
 # Function to manage navigation
 def navigate(page):
     st.session_state['page'] = page
+    st.query_params['page'] = page
 
 
 def SideBar():
@@ -70,6 +71,8 @@ def SideBar():
                 st.session_state['page'] = 'home' # Reset page to home on logout
                 if "logged_in_user" in st.query_params:
                     del st.query_params["logged_in_user"]
+                if "page" in st.query_params:
+                    del st.query_params["page"]
                 st.rerun()
         else:
             login_col, signup_col = st.columns(2)

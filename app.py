@@ -29,8 +29,7 @@ def main():
         st.session_state['logged_in'] = False
     if 'username' not in st.session_state:
         st.session_state['username'] = None
-    if 'page' not in st.session_state:
-        st.session_state['page'] = 'home'
+    
 
     # If a username is present in session_state, assume logged in for persistence across refreshes
     # Check URL query parameters for persistence

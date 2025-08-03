@@ -19,10 +19,12 @@ def login_page():
                 st.session_state['logged_in'] = True
                 st.session_state['username'] = username
                 if 'redirect_after_login' in st.session_state and st.session_state['redirect_after_login']:
-                    st.session_state['page'] = st.session_state['redirect_after_login']
+                    target_page = st.session_state['redirect_after_login']
                     del st.session_state['redirect_after_login'] # Clear the redirect target
                 else:
-                    st.session_state['page'] = 'home' # Default to home page
+                    target_page = 'home' # Default to home page
+                st.session_state['page'] = target_page
+                st.query_params['page'] = target_page # Also update query params for persistence
                 st.query_params["logged_in_user"] = username # Store username in URL for persistence
                 st.success("Logged in successfully!")
                 st.rerun()
