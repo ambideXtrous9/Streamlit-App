@@ -10,11 +10,12 @@ def navigator():
 
     # Get the current page from the query parameters
     
-    page = "page"
-    
-    if page in st.query_params.keys():
+    if 'page' in st.session_state:
+        page = st.session_state['page']
+    elif "page" in st.query_params.keys():
         page = st.query_params["page"]
-    else: page = "home"
+    else:
+        page = "home"
 
     # Display content based on the selected menu item
     if page == "home":
