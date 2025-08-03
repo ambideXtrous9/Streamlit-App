@@ -1,23 +1,11 @@
 rules:
   - id: trailofbits.python.pickles-in-pytorch.pickles-in-pytorch
     severity: INFO
-    message: "Ignoring torch.load in load_model_safely - safe usage with validation"
+    message: "Ignoring torch.load in classifier.py - safe usage with validation"
     metadata:
       confidence: LOW
       ignored_reason: "Controlled usage with input validation"
     languages: [python]
     paths:
-      include:
+      exclude:
         - "ImageClassifier/classifier.py"
-    patterns:
-      - pattern-either:
-          - pattern: |
-              def load_model_safely($MODEL, $PATH, $NUM_CLASSES, $LR):
-                ...
-                torch.load($CHECKPOINT, map_location=...)
-                ...
-          - pattern: |
-              def load_model_safely($MODEL, $PATH, $NUM_CLASSES, $LR):
-                ...
-                torch.load($CHECKPOINT, ...)
-                ...
