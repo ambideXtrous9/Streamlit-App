@@ -1,7 +1,18 @@
 import streamlit as st
-from NewsQALLM.HpAgent import graph
+from NewsQALLM.HpAgent import GraphBuild
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
+from langchain_core.runnables import RunnableConfig
+import uuid
 
-app = graph.compile()
+conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
+checkpointer = SqliteSaver(conn)
+
+app = GraphBuild(checkpointer)
+
+with open("graph.png", "wb") as f:
+    f.write(app.get_graph().draw_mermaid_png())
+
 
 
 
@@ -27,8 +38,15 @@ def ChatBot():
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         # Get the assistant's response using the predict function
-        output = app.invoke({"topic": prompt, "review": "Write an awesome article on the topic."})
+        # Checkpointer requires one or more of the following 'configurable' keys: thread_id
+        thread_id = str(uuid.uuid4())
+        thread_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        output = app.invoke(input={"topic": prompt, "review": "Write an awesome article on the topic."}, config=thread_config)
         
+        if output.get("classification") and output.get("classification")["classification"] == "generic":
+            st.chat_message("assistant").markdown(output["classification"]["reply"])
+            return
+            
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(output["draft"])
