@@ -76,7 +76,7 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 
-reranker_model = "mixedbread-ai/mxbai-rerank-xsmall-v1"
+reranker_model = "jinaai/jina-reranker-v1-tiny-en"
 
 # Load BGE reranker model and tokenizer once (outside the function)
 MODEL_REVISION = "main"  # or a specific commit hash like "a1b2c3d..."
