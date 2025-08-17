@@ -1,7 +1,7 @@
 # langgraph_multiagent.py
 from langchain.agents import Tool
 from langgraph.graph import StateGraph, END
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, Dict
 from langgraph.prebuilt import create_react_agent
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.messages import AIMessage  # import AIMessage
@@ -10,15 +10,13 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from transformers import AutoTokenizer, AutoModel
 from langchain_core.tools import tool
 import torch
-import sqlite3
-from langgraph.checkpoint.sqlite import SqliteSaver
+import time
 import streamlit as st 
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os 
+from NewsQALLM.RouterAgent import classify_node
 
-conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
-checkpointer = SqliteSaver(conn)
 
 load_dotenv()
 
@@ -58,6 +56,7 @@ class AgentState(TypedDict):
     critique: Optional[str]
     approved: Optional[bool]
     review: Optional[str]
+    classification: Dict[str, str]
 
 
 
@@ -148,15 +147,21 @@ def researcher_node(state: AgentState) -> AgentState:
     user_msg = {"role": "user", "content": f"Research this topic in detail: {state['topic']}"}
 
     ai_content = ""
-    for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-        msg = step["messages"][-1]
-        with st.chat_message("Agent"):
-            st.markdown(msg.content)
-
-        # Capture only if it's an assistant message
-        if isinstance(msg, AIMessage):
-            ai_content = msg.content
+    start_time = time.time()
+    with st.spinner("Research Node in Progress…", show_time=True):
+        
+        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
+            msg = step["messages"][-1]
+            # Capture only if it's an assistant message
+            if isinstance(msg, AIMessage):
+                ai_content = msg.content
             
+    end_time = time.time()
+    research_time = end_time - start_time
+
+    with st.chat_message("Agent"):
+        st.markdown(f"**✅ Research Time :** {research_time:.2f} seconds\n")
+    
     return {**state, "research": ai_content}
 
 
@@ -186,14 +191,22 @@ def mythology_node(state: AgentState) -> AgentState:
 
 
     ai_content = ""
-    for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-        msg = step["messages"][-1]
-        with st.chat_message("Agent"):
-            st.markdown(msg.content)
-        # Capture only if it's an assistant message
-        if isinstance(msg, AIMessage):
-            ai_content = msg.content
+    start_time = time.time()
+    with st.spinner("Mythology Node in Progress…", show_time=True):
+        
+        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
+            msg = step["messages"][-1]
+            # Capture only if it's an assistant message
+            if isinstance(msg, AIMessage):
+                ai_content = msg.content
             
+    
+    end_time = time.time()
+    mythology_time = end_time - start_time
+    
+    with st.chat_message("Agent"):
+        st.markdown(f"**✅ Mythology Time :** {mythology_time:.2f} seconds\n")
+    
     return {**state, "mythology": ai_content}
 
 
@@ -223,14 +236,21 @@ def writer_node(state: AgentState) -> AgentState:
     }
 
     ai_content = ""
-    for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-        msg = step["messages"][-1]
-        with st.chat_message("Agent"):
-            st.markdown(msg.content)
-        # Capture only if it's an assistant message
-        if isinstance(msg, AIMessage):
-            ai_content = msg.content
+    start_time = time.time()
+    with st.spinner("Writer Node in Progress…", show_time=True):
+        
+        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
+            msg = step["messages"][-1]
+            # Capture only if it's an assistant message
+            if isinstance(msg, AIMessage):
+                ai_content = msg.content
 
+    end_time = time.time()
+    writer_time = end_time - start_time
+    
+    with st.chat_message("Agent"):
+        st.markdown(f"**✅ Writer Time :** {writer_time:.2f} seconds\n")
+    
     return {**state, "draft": ai_content}
 
 
@@ -259,17 +279,32 @@ def critic_node(state: AgentState) -> AgentState:
     }
 
     ai_content = ""
-    for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-        msg = step["messages"][-1]
-        with st.chat_message("Agent"):
-            st.markdown(msg.content)
-        # Capture only if it's an assistant message
-        if isinstance(msg, AIMessage):
-            ai_content = msg.content
+    start_time = time.time()
+    with st.spinner("Critique Node in Progress…", show_time=True):
+        
+        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
+            msg = step["messages"][-1]
+            # Capture only if it's an assistant message
+            if isinstance(msg, AIMessage):
+                ai_content = msg.content
 
-    
     approved = "yes" in ai_content.lower()
 
+    end_time = time.time()
+    critique_time = end_time - start_time
+    
+    with st.chat_message("Agent"):
+        st.markdown(f"**✅ Critique Time :** {critique_time:.2f} seconds\n")
+
+    if approved:
+        with st.chat_message("Agent"):
+            st.markdown(f"**✅ Critique Decision :** Approved\n")
+    else:
+        with st.chat_message("Agent"):
+            st.markdown(f"**❌ Critique Decision :** Rejected\n")
+
+    
+    
     return {**state, "critique": ai_content, "approved": approved}
 
 
@@ -288,22 +323,51 @@ def check_approval(state: AgentState) -> str:
 # ---------------------------
 # 🌐 LangGraph Definition
 # ---------------------------
-graph = StateGraph(AgentState)
 
-graph.add_node("researcher", researcher_node)
-graph.add_node("mythologist", mythology_node)
+def decide_start_node(state):
+    if state.get('classification') and state.get('classification')['classification'] == "exit":
+        return "end"
+    elif state.get('classification') and state.get('classification')['classification'] == "generic":
+        return "end"
+    elif state.get('classification') and state.get('classification')['classification'] == "harry":
+        return "harry"
+    else:
+        return "feedbackloop"
 
-graph.add_node("writer", writer_node)
-graph.add_node("critic", critic_node)
 
-graph.set_entry_point("researcher")
+# def feedbackloop_node(state: AgentState) -> AgentState:
 
-graph.add_edge("researcher", "mythologist")
-graph.add_edge("mythologist", "writer")
-graph.add_edge("writer", "critic")
-graph.add_conditional_edges("critic", check_approval, {
-    "end": END,
-    "mythologist": "mythologist"  
-})
+#     return state
 
+
+def GraphBuild(checkpointer):
+    graph = StateGraph(AgentState)
+
+    graph.add_node("classify", classify_node)
+
+    graph.add_node("researcher", researcher_node)
+    graph.add_node("mythologist", mythology_node)
+    graph.add_node("writer", writer_node)
+    graph.add_node("critic", critic_node)
+
+    graph.set_entry_point("classify")
+
+    graph.add_conditional_edges(
+        "classify",
+        decide_start_node,
+        {
+            "feedbackloop" : "classify",
+            "harry": "researcher",
+            "end": END
+        }
+    )
+    graph.add_edge("researcher", "mythologist")
+    graph.add_edge("mythologist", "writer")
+    graph.add_edge("writer", "critic")
+    graph.add_conditional_edges("critic", check_approval, {
+        "end": END,
+        "mythologist": "mythologist"  
+    })
+
+    return graph.compile(checkpointer=checkpointer)
 
