@@ -65,10 +65,9 @@ print(f"Using device: {device}")
 
 
 # Initialize BAAI embeddings with GPU support
-embedmodel = "BAAI/bge-base-en" # You can also use bge-base for smaller but faster model
-model_kwargs = {'device': device}
+embedmodel = "Alibaba-NLP/gte-multilingual-base" # You can also use bge-base for smaller but faster model
+model_kwargs = {'device': device, "trust_remote_code": True}
 encode_kwargs = {'batch_size': 128, 'device': device, 'normalize_embeddings': True}
-
 
 embeddings = HuggingFaceEmbeddings(
     model_name=embedmodel,
@@ -77,15 +76,17 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 
+reranker_model = "mixedbread-ai/mxbai-rerank-xsmall-v1"
+
 # Load BGE reranker model and tokenizer once (outside the function)
 MODEL_REVISION = "main"  # or a specific commit hash like "a1b2c3d..."
 reranker_tokenizer = AutoTokenizer.from_pretrained(
-    "BAAI/bge-reranker-base",
+    reranker_model,
     revision=MODEL_REVISION,
     trust_remote_code=False
 )
 reranker_model = AutoModel.from_pretrained(
-    "BAAI/bge-reranker-base",
+    reranker_model,
     revision=MODEL_REVISION,
     trust_remote_code=False
 )
