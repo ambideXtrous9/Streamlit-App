@@ -65,8 +65,8 @@ print(f"Using device: {device}")
 
 
 # Initialize BAAI embeddings with GPU support
-embedmodel = "Alibaba-NLP/gte-multilingual-base" # You can also use bge-base for smaller but faster model
-model_kwargs = {'device': device, "trust_remote_code": True}
+embedmodel = "sentence-transformers/all-MiniLM-L6-v2" # You can also use bge-base for smaller but faster model
+model_kwargs = {'device': device} # , "trust_remote_code": True
 encode_kwargs = {'batch_size': 128, 'device': device, 'normalize_embeddings': True}
 
 embeddings = HuggingFaceEmbeddings(
@@ -76,20 +76,11 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 
-reranker_model = "BAAI/bge-reranker-base"
+reranker_model = "sentence-transformers/all-MiniLM-L6-v2"
 
 # Load BGE reranker model and tokenizer once (outside the function)
-MODEL_REVISION = "main"  # or a specific commit hash like "a1b2c3d..."
-reranker_tokenizer = AutoTokenizer.from_pretrained(
-    reranker_model,
-    revision=MODEL_REVISION,
-    trust_remote_code=False
-)
-reranker_model = AutoModel.from_pretrained(
-    reranker_model,
-    revision=MODEL_REVISION,
-    trust_remote_code=False
-)
+reranker_tokenizer = AutoTokenizer.from_pretrained(reranker_model)
+reranker_model = AutoModel.from_pretrained(reranker_model)
 
 
 vectordb_vectr = FAISS.load_local(
@@ -265,7 +256,7 @@ def critic_node(state: AgentState) -> AgentState:
         prompt=(
             "You are a Critical Reviewer having Knowledge in Both Harry Potter Universe and Indian Mythology."
             "First Give your 'approval' by saying 'Yes' or 'No' by reading the draft."
-            "Use Your Intelligence to evaluate the draft and Give your Comments and Reasoning."
+            "Use Your Intelligence to evaluate the draft and Give your Brief Comments and Reasoning."
         )
     )
 
@@ -275,7 +266,7 @@ def critic_node(state: AgentState) -> AgentState:
             "Here is the draft article:\n\n"
             f"{state['draft']}\n\n"
             "Please critique it, checking for factual accuracy and clarity."
-            "First Give 'approval' by saying 'yes' or 'no' followed by concise reasoning."
+            "First Give 'approval' by saying 'yes' or 'no' followed by concise and brief reasoning."
         )
     }
 
