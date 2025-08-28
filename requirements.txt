@@ -40,3 +40,4 @@ langchain-groq
 sentence-transformers
 python-dotenv
 langgraph-checkpoint-sqlite
+ddgs
