@@ -26,6 +26,11 @@ def navigator():
         HomePage()
 
     # Page content based on the selected menu item
+    elif page == "signup":
+        st.session_state['show_signup'] = True
+        st.session_state['show_login'] = False
+        login_page()
+        
     elif page == "yolologo":
         st.title("🚀:blue[YOLO for Logo!] :sunglasses:")
         YoloforLogo()
@@ -35,6 +40,7 @@ def navigator():
             st.title("🪄:blue[Harry Potter X  Mythology]")
             ChatBot()
         else:
+            st.session_state['redirect_after_login'] = "newsqa"
             login_page()
         
     elif page == "image_classifer":
