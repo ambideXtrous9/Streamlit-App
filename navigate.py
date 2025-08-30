@@ -27,27 +27,27 @@ def navigator():
 
     # Page content based on the selected menu item
     elif page == "yolologo":
-        st.title("🚀:rainbow[YOLO for Logo!] :sunglasses:")
+        st.title("🚀:blue[YOLO for Logo!] :sunglasses:")
         YoloforLogo()
         
     elif page == "newsqa":
         if st.session_state.get('logged_in'):
-            st.title("🪄:rainbow[Harry Potter X  Mythology]")
+            st.title("🪄:blue[Harry Potter X  Mythology]")
             ChatBot()
         else:
             login_page()
         
     elif page == "image_classifer":
-        st.title("🚀:rainbow[Image Classification ] :sunglasses:")
+        st.title("🚀:blue[Image Classification ] :sunglasses:")
         model_card()
         
     elif page == "clusterplay":
-        st.title("🐙:rainbow[Play with Clusters] :sunglasses:")
+        st.title("🐙:blue[Play with Clusters] :sunglasses:")
         Cluster()
         
     elif page == "stockscreener":
         if st.session_state.get('logged_in'):
-            st.title("🚀:rainbow[Stock Screener]")
+            st.title("🚀:blue[Stock Screener]")
             st.title("Range Breakout with Volume")
             StockScan()
         else:
