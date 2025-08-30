@@ -23,33 +23,61 @@ def Social(sidebarPos = False,heading = None):
     social_media_icons.render(sidebar=sidebarPos, justify_content="center")
 
 def HomePage():
-    st.title(":blue[My Portfolio] 🤓")
-    
-    gif_path = 'thor.gif'
-    col1_home, col2_home = st.columns([1, 2])
-    
-    with col1_home:
-        st.image(gif_path)
-    
     # Display "About Me" text in the right column
-    with col2_home:
-        st.subheader("🌱 About Me")
-        st.write("""
-        👋 Hi there! I'm **Sushovan Saha**, a Machine Learning (ML) enthusiast specializing in **Natural Language Processing (NLP)** and **Computer Vision (CV)**.  
-        I did my M.Tech in Data Science from **IIT Guwahati**. I am also a **Kaggle Notebook Expert**.
+    st.markdown("""
+        <div align="center">
+            <a href="https://in.linkedin.com/in/sushovan-saha-29a00a113" target="blank"><img align="center" src="https://www.baretreemedia.com/wp-content/uploads/2018/05/01_YESS_Thor_v4.gif" width="400" height="400" /></a>
+        </div>
+        
+        # <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Man%20Technologist.png" alt="Man Technologist" width="40" height="40" /> About Me  
 
-        🌟 I'm passionate about exploring the possibilities of ML to solve real-world problems and improve people's lives.  
-        I love working on challenging projects that require me to stretch my abilities and learn new things.
+        <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Waving%20Hand%20Medium-Light%20Skin%20Tone.png" alt="Waving Hand Medium-Light Skin Tone" width="30" height="30" /> Hi there! 
+        I'm **Sushovan Saha** — a passionate **Machine Learning (ML)** practitioner with deep interests in **Machine Learning (ML)**, **Deep Learning**, **Natural Language Processing (NLP)**, **Computer Vision (CV)**, and the transformative capabilities of **Large Language Models (LLMs)** and **Gen AI**.  
+        Currently working as a founding **AI Engineer** at a Stealth Startup.
+            
+        <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Telegram-Animated-Emojis/main/Objects/Graduation%20Cap.webp" alt="Graduation Cap" width="30" height="30" /> I hold an **M.Tech in Data Science from IIT Guwahati** and I’m currently a **Kaggle Notebook Expert** with a strong inclination toward solving real-world challenges using intelligent systems.  
 
-        ⚙️ My technical toolkit includes:
-        - **LLMs (Large Language Models)** and frameworks like **LangChain**
-        - **LangGraph** for building composable pipelines
-        - **Agents**–driven architectures
-        - **Crew AI** for collaborative AI workflows
-        - Advanced **NLP** and **CV** techniques
+        ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" alt="Rocket" width="30" height="30" /> My Skills:  
+        - **LLMs & Generative AI**: Proficient in **RAG, Agentic RAG, LangChain, LangGraph, Crew AI**, and building **Agentic Workflows**  
+        - **Applied ML & Deep Learning**: End-to-end project experience across NLP and CV domains  
+        - **Model Fine-Tuning**: Experience in fine-tuning models on custom datasets in **HuggingFace, Unsloth, Pytorch and Pytorch Lightning**
+        - **MLOps & Scalable ML Systems**: Focus on production-grade pipelines, model deployment, and monitoring **MLFlow**
+        - **API & Deployment**: Experience in deploying models as APIs using **FastAPI** and deploying on cloud platforms like **AWS and GCP** 
+        - **CI/CD**: Experience in setting up CI/CD pipelines using **GitHub Actions**
+        - **Data Science**: Experience in data analysis, statistical analysis, data visualization, and data preprocessing using **Pandas, NumPy, Matplotlib, Seaborn, and Scikit-learn**
 
-        📚 In my free time, I like to contribute on **Kaggle**, write ML blogs on **Medium**, and read industry updates to stay ahead in the field.
-    """)
+        ---
+
+        [![My Skills](https://skillicons.dev/icons?i=cpp,python,pytorch,vscode,git,github,docker,gcp,aws,githubactions&perline=10)](https://skillicons.dev)  
+
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;" align="left">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/anaconda/anaconda-original.svg" width="50" height="50"/>
+            <img src="https://colab.research.google.com/img/colab_favicon_256px.png" width="50" height="50"/>
+            <img src="https://cdn3.iconfinder.com/data/icons/logos-and-brands-adobe/512/189_Kaggle-512.png" width="50" height="50"/>
+            <img src="https://cdn-avatars.huggingface.co/v1/production/uploads/62ecdc18b72a69615d6bd857/E4lkPz1TZNLzIFr_dR273.png" width="50" height="50"/>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Keras_logo.svg/1200px-Keras_logo.svg.png" width="50" height="50"/>
+            <img src="https://github.com/ambideXtrous9/ambideXtrous9/blob/main/icons/huggingface.png?raw=true" width="50" height="50"/>
+            <img src="https://newrelic.com/sites/default/files/styles/medium/public/quickstarts/images/icons/langchain--logo.png" width="50" height="50"/>
+            <img src="https://miro.medium.com/v2/resize:fit:1196/0*GuAKET2lI82IcBrW.png" width="50" height="50"/>
+            <img src="https://miro.medium.com/v2/resize:fit:1400/0*-7HC-GJCxjn-Dm7i.png" width="50" height="50"/>
+            <img src="https://github.com/ambideXtrous9/ambideXtrous9/blob/main/icons/lightning.png?raw=true" width="50" height="50"/>
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg" width="50" height="50"/>
+        </div>
+
+        ---
+        
+        - Contributing to the ML community on [Kaggle](https://www.kaggle.com/sushovansaha9)  
+        - Writing practical ML blogs on [Medium](https://medium.com/@sushovansaha95)  
+        - Exploring new AI tools, frameworks, and academic papers to stay at the cutting edge  
+
+        ⚡ I'm always eager to collaborate on innovative projects, exchange ideas, and learn from the community. Let’s build something amazing with AI! 🤝  
+
+        ---
+
+        
+    """,
+    unsafe_allow_html=True,
+    )
         
     glowingSocial()
 
