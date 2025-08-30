@@ -42,7 +42,7 @@ def get_yf_symbol(company_name: str):
     return match.iloc[0] if not match.empty else None
 
 rocket_icon = '<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" alt="Rocket" width="50" height="50" />'
-heading = f"## {rocket_icon} AI Stock Financial Research Report"
+heading = f"## {rocket_icon} AI Financial Research Report"
 
 chart_icon = '<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Chart%20Increasing%20with%20Yen.png" alt="Chart Increasing with Yen" width="40" height="40" />'
 final_report = f"### {chart_icon} Final Report"
@@ -68,81 +68,106 @@ stock_agent = create_react_agent(
         tools=[],
         prompt = (
             """
-            # 📊 Equity Research
-
             **Role:**  
-            You are a **Senior Equity Research Analyst with 20+ years of experience**. Your task is to rigorously analyze a stock using multi-dimensional data and provide an **institutional-grade, data-driven recommendation**.  
+            You are a **Senior Equity Research Analyst and Trader (20+ years experience)**. 
+            Analyze a stock rigorously using fundamentals, technicals, ownership, news, and macro data.
+            Provide an **institutional-grade, data-driven recommendation**.  
+            **Analyze Technical Indicators as Experienced Trader:**
+            ---
+            ## 🔹 Report Methodology 
+            For each section:  
+            - **Action:** Metrics analyzed  
+            - **Observation:** Factual insights  
+            
+            ---
+            
+            ** Report Output Format:**
+            
+            ## 📊 <Equity Name Here>
+
+            ### 1. 📌 Investment Call
+            - **Stock:** {Stock Name} ({Ticker})
+            - **Call:** **Buy / Hold / Sell**
+            - **Conviction:** High / Medium / Low
+            - **CMP:** ₹{Price}
+            - **12M Target:** ₹{Target} (**+XX%/-XX% vs CMP**)
+            - **Quick Rationale:** {Valuation/Growth/Sector driver}
 
             ---
 
-            ## 🔹 Methodology – Use ReAct Framework  
-            For every section, explicitly follow this structure:  
-
-            - **Thought:** Explain your reasoning  
-            - **Action:** Specify what data/metrics you are analyzing  
-            - **Observation:** State what the data reveals with factual insights  
-
+            ### 2A. 🏦 Fundamentals
+            | Factor | Observation | Implication |
+            |--------|-------------|-------------|
+            | **Valuation vs Peers** | P/E {X} vs Sector {Y}, 5Y median {Z} | Attractive / Expensive |
+            | **Earnings** | Rev {X%} YoY, EBITDA {Y%}, PAT {Z%} | Strong / Weak |
+            | **Balance Sheet** | D/E {X}, ROE {Y%}, Cashflow {Good/Weak} | Healthy / Stressed |
+            | **Ownership** | FII/DII {Trend}, Promoter {X%} | Confidence / Weakness |
+            | **Sector** | Industry CAGR {X%}, policy {Yes/No} | Growth / Headwind |
             ---
-
-            ## 🔹 Data Inputs to Analyze  
-            - **Fundamentals:** P/E, P/B, ROE, Debt/Equity, YoY & QoQ Revenue/Profit growth  
-            - **Technicals:** RSI, EMA(10/20), SMA(50/100/200), MACD, Volume, Support/Resistance  
-            - **Sentiment & News:** Macro/sector trends, policy impact, recent developments  
-            - **Ownership Patterns:** FII/DII flows, promoter holding changes, pledging (last 2 quarters)  
-            - **Valuation Models:** DCF, comparables, sector average multiples  
-            - **Risk-Reward:** Margin of Safety (MOS), Upside/Downside potential  
-
+            ### 2B. 📉 Technicals
+            | Indicator | Observation | Signal |
+            |-----------|-------------|--------|
+            | **RSI** | {Value} | OB/OS/Neutral |
+            | **MAs** | 50DMA vs 200DMA | Bullish / Bearish |
+            | **MACD** | {Crossover} | Buy / Sell / Neutral |
+            | **Support/Resistance** | ₹{X} / ₹{Y} | Risk–Reward |
+            | **Volume** | >/< 30D avg | Confirmation / Weakness |
             ---
-
-            ## 🔹 Output Structure (Markdown + Tables)
-
-            ### 1. 📌 Recommendation
-            | **Call** | **Conviction Level** | **Current Price** | **% Upside/Downside** | **Justification** |
-            |----------|----------------------|-------------------|-----------------------|-------------------|
-            | **Buy / Sell / Hold** | **High / Medium / Low** | **₹XXX** | **+XX% / -XX%** | **Cover valuation, technicals, financial trends, promoter/institutional activity, sector outlook** |
-
+            ### 2C. 🧾 Shareholding
+            | Category | Current (%) | Prev (%) | Change |
+            |----------|-------------|----------|--------|
+            | Promoters | {X} | {Y} | {Δ} |
+            | FII | {X} | {Y} | {Δ} |
+            | DII | {X} | {Y} | {Δ} |
+            | Retail | {X} | {Y} | {Δ} |
+            *Implication: {Promoter confidence / FII flows / Retail overhang}*
             ---
-
-            ### 2. 🎯 Entry Analysis
-            | **Factor** | **Observation** | **Implication** |
-            |------------|-----------------|-----------------|
-            | **Valuation vs Sector & History** | … | … |
-            | **Technical Indicators (RSI, SMA, MACD)** | … | … |
-            | **FII/DII Activity / Insider Buying** | … | … |
-            | **Sector Outlook & Competitive Position** | … | … |
-
-
+            ### 2D. 📰 Key News
+            **Explain Key News(**Headlines**) with their Impact(**Positive/Negative**) on the stock**
             ---
-
-            ### 3. 📈 Price Targets
-            | Horizon | Bear Case | Base Case | Bull Case |
-            |---------|-----------|-----------|-----------|
-            | Short Term (3M) | ₹XXX | ₹XXX | ₹XXX |
-            | Medium Term (6M) | ₹XXX | ₹XXX | ₹XXX |
-            | Long Term (12M) | ₹XXX | ₹XXX | ₹XXX |
-
+            ### 2E. 📊 Return vs Benchmark
+            | Period | Stock (%) | Nifty (%) | Alpha |
+            |--------|-----------|-----------|-------|
+            | 1M | {X} | {Y} | {Δ} |
+            | 3M | {X} | {Y} | {Δ} |
+            | 1Y | {X} | {Y} | {Δ} |
+            | 3Y CAGR | {X} | {Y} | {Δ} |
+            *Implication: Outperform / Underperform*
             ---
-
-            ### 4. ⚖️ Risks & Catalysts
-            | Risks (Red Flags) | Catalysts (Tailwinds) |
-            |-------------------|------------------------|
-            | High debt, pledging, litigation, governance, slowdown risks | Policy incentives, strong order book, capacity expansion, M&A, new launches |
-
+            ### 2F. 🌍 Macro Influence
+            - **Rates/Inflation:** {Impact}  
+            - **Currency:** {Impact}  
+            - **Commodities:** {Impact}  
+            - **Policy/Regulation:** {Impact}  
+            - **Global Cues:** {Impact}  
+            *Net: Supportive / Neutral / Headwind (Summarize all the macro impact on the stock)*
             ---
-
-            ### 5. ✅ Final Verdict
-            - Example: **Buy for 25% upside to 12M target of ₹XXX**, driven by strong EPS growth, low valuation, and sector tailwinds. Entry near ₹YYY. Stop loss: ₹ZZZ.  
-
+            ### 3. 📈 Price Roadmap & Forward Outlook  
+            | Horizon | Price Estimate | Basis of Projection | Risk Factors |
+            |---------|----------------|---------------------|--------------|
+            | **3M (Near-term)** | ₹{Short} | Driven by {Q earnings, sector sentiment, technical breakout, FII flows} | {Volatility, macro events, crude prices} |
+            | **6M (Mid-term)** | ₹{Medium} | {Earnings momentum, order book visibility, policy tailwinds, margin trend} | {Global slowdown, interest rate risks} |
+            | **12M (Long-term)** | ₹{Target} | {Structural growth drivers, market share gains, valuation rerating potential} | {Execution risk, competition, regulation} |
+            *Analyst Bias:* {Bullish / Neutral / Cautious}, assuming {X%} CAGR in earnings over FY{25–27}.
             ---
-
-            ## ⚡ Tone & Style Requirements
-            - Use **Markdown tables + bullet points** for clarity  
-            - Be **concise, professional, and data-rich**  
-            - Always include **numbers and comparisons** where possible  
-            - Avoid verbosity; keep it **institutional-grade**  
-
+            ### 4. ⚖️ Risk–Reward
+            **Risks:** Explain the risks from Fundamentals, Technicals, Ownership, News, Macro  
+            **Catalysts:** Explain the catalysts from Fundamentals, Technicals, Ownership, News, Macro  
+            ---
+            ### 5. 📝 Executive Summary
+            - **Call:** {Buy/Hold/Sell}, {XX%} upside to ₹{Target}  
+            - **Fundamentals:** {Valuation, earnings, balance sheet}  
+            - **Technicals:** {Trend, support/resistance}  
+            - **Ownership:** {FII/DII trend, promoter stance}  
+            - **News:** {Most impactful trigger}  
+            - **Returns vs Nifty:** {Out/Underperform}  
+            - **Macro Impact:** {Key driver}  
+            - **Entry Zone:** ₹{X}, **Stop Loss:** ₹{Y}  
+            ---
+            ### Final Verdict : **Price Target with Conviction and Timeframe summarising all the above points**
             """
         )
+
     )
 
 # ---------------------------
@@ -641,6 +666,40 @@ def plotShareholding(shareholdnres):
     st.plotly_chart(fig, use_container_width=True)
 
 
+
+def reportGenerator(option):
+    """
+    Main function to generate report
+    """
+    fundainfo, shareholdnres = scrapper(option)
+    technical_indicators = compute_latest_technical_indicators(option)
+    companyDetails(fundainfo) 
+    chart(ticker=option)
+    plotChart(option)
+    analyze_financial_data(shareholdnres)
+    plotShareholding(shareholdnres)
+    news = CompanyNews(fundainfo['Company Name'])
+
+    if st.button("AI Research Report"):
+        with st.spinner("Generating Report..."):
+            st.markdown(heading, unsafe_allow_html=True)
+            report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
+
+        # Extract <think> section
+        think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
+        thinking_part = think_match.group(1).strip() if think_match else "No reasoning available."
+        report_without_think = re.sub(r"<think>.*?</think>", "", report, flags=re.DOTALL).strip()
+
+        with st.chat_message("StockAgent"):
+
+                with st.expander("🧠 Agent Reasoning (Click to Expand)"):
+                    st.markdown(thinking_part)
+
+                st.markdown(final_report, unsafe_allow_html=True)
+                st.markdown(report_without_think)
+    
+
+
 def StockScan():
     """
     Main function to scan and analyze stocks
@@ -698,30 +757,7 @@ def StockScan():
             )
 
             if option:
-                fundainfo, shareholdnres = scrapper(option)
-                technical_indicators = compute_latest_technical_indicators(option)
-                companyDetails(fundainfo) 
-                chart(ticker=option)
-                plotChart(option)
-                analyze_financial_data(shareholdnres)
-                plotShareholding(shareholdnres)
-                news = CompanyNews(fundainfo['Company Name'])
-
-                st.markdown(heading, unsafe_allow_html=True)
-                report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
-        
-                # Extract <think> section
-                think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
-                thinking_part = think_match.group(1).strip() if think_match else "No reasoning available."
-                report_without_think = re.sub(r"<think>.*?</think>", "", report, flags=re.DOTALL).strip()
-
-                with st.chat_message("StockAgent"):
-
-                        with st.expander("🧠 Agent Reasoning (Click to Expand)"):
-                            st.markdown(thinking_part)
-
-                        st.markdown(final_report, unsafe_allow_html=True)
-                        st.markdown(report_without_think)
+                reportGenerator(option)
 
     elif selected_option == "Volume Breakout MICROCAP250":
         st.title("Running Scan on MICROCAP250")
@@ -744,31 +780,8 @@ def StockScan():
             )
 
             if option:
-                fundainfo, shareholdnres = scrapper(option)
-                technical_indicators = compute_latest_technical_indicators(option)
-                companyDetails(fundainfo) 
-                chart(ticker=option)
-                plotChart(option)
-                analyze_financial_data(shareholdnres)
-                plotShareholding(shareholdnres)
-                news = CompanyNews(fundainfo['Company Name'])
-
-                st.markdown(heading, unsafe_allow_html=True)
-                report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
-        
-                # Extract <think> section
-                think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
-                thinking_part = think_match.group(1).strip() if think_match else "No reasoning available."
-                report_without_think = re.sub(r"<think>.*?</think>", "", report, flags=re.DOTALL).strip()
-
-                with st.chat_message("StockAgent"):
-
-                        with st.expander("🧠 Agent Reasoning (Click to Expand)"):
-                            st.markdown(thinking_part)
-
-                        st.markdown(final_report, unsafe_allow_html=True)
-                        st.markdown(report_without_think)
-
+                reportGenerator(option)
+                
     elif selected_option == "Stocks Analysis":
         option = st.selectbox(
             "List of Stocks",
@@ -782,30 +795,7 @@ def StockScan():
         option = get_yf_symbol(option)
         
         if option:
-            fundainfo, shareholdnres = scrapper(option)
-            technical_indicators = compute_latest_technical_indicators(option)
-            companyDetails(fundainfo) 
-            chart(ticker=option)
-            plotChart(option)
-            analyze_financial_data(shareholdnres)
-            plotShareholding(shareholdnres)
-            news = CompanyNews(fundainfo['Company Name'])
-
-            st.markdown(heading, unsafe_allow_html=True)
-            report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
-    
-            # Extract <think> section
-            think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
-            thinking_part = think_match.group(1).strip() if think_match else "No reasoning available."
-            report_without_think = re.sub(r"<think>.*?</think>", "", report, flags=re.DOTALL).strip()
-
-            with st.chat_message("StockAgent"):
-
-                    with st.expander("🧠 Agent Reasoning (Click to Expand)"):
-                        st.markdown(thinking_part)
-
-                    st.markdown(final_report, unsafe_allow_html=True)
-                    st.markdown(report_without_think)
+            reportGenerator(option)
     
     elif selected_option == "Volume Breakout MICROCAP250":
         stockList = []
@@ -836,30 +826,7 @@ def StockScan():
             st.write("You selected:", option)
             
             if option:
-                fundainfo, shareholdnres = scrapper(option)
-                technical_indicators = compute_latest_technical_indicators(option)
-                companyDetails(fundainfo) 
-                chart(ticker=option)
-                plotChart(option)
-                analyze_financial_data(shareholdnres)
-                plotShareholding(shareholdnres)
-                news = CompanyNews(fundainfo['Company Name'])
-
-                st.markdown(heading, unsafe_allow_html=True)
-                report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
-        
-                # Extract <think> section
-                think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
-                thinking_part = think_match.group(1).strip() if think_match else "No reasoning available."
-                report_without_think = re.sub(r"<think>.*?</think>", "", report, flags=re.DOTALL).strip()
-
-                with st.chat_message("StockAgent"):
-
-                        with st.expander("🧠 Agent Reasoning (Click to Expand)"):
-                            st.markdown(thinking_part)
-
-                        st.markdown(final_report, unsafe_allow_html=True)
-                        st.markdown(report_without_think)
+                reportGenerator(option)
     
     elif selected_option == "Stocks Analysis":
 
@@ -876,33 +843,8 @@ def StockScan():
         if option:
             symbol = get_yf_symbol(option)
 
-        
-        
         if symbol:
-            fundainfo, shareholdnres = scrapper(symbol)
-            technical_indicators = compute_latest_technical_indicators(symbol)
-            companyDetails(fundainfo) 
-            chart(ticker=symbol)
-            plotChart(symbol)
-            analyze_financial_data(shareholdnres)
-            plotShareholding(shareholdnres)
-            news = CompanyNews(fundainfo['Company Name'])
-
-            st.markdown(heading, unsafe_allow_html=True)
-            report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
-    
-            # Extract <think> section
-            think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
-            thinking_part = think_match.group(1).strip() if think_match else "No reasoning available."
-            report_without_think = re.sub(r"<think>.*?</think>", "", report, flags=re.DOTALL).strip()
-
-            with st.chat_message("StockAgent"):
-
-                    with st.expander("🧠 Agent Reasoning (Click to Expand)"):
-                        st.markdown(thinking_part)
-
-                    st.markdown(final_report, unsafe_allow_html=True)
-                    st.markdown(report_without_think)
+            reportGenerator(symbol)
         
 
                 
