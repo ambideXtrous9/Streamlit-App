@@ -11,6 +11,7 @@ def login_page():
 
     if st.session_state['show_login']:
         st.subheader("Login")
+        st.write("Please login to access this feature. Use Temporary Account: [username: abc, password: 123].")
         username = st.text_input("Username", key="login_username")
         password = st.text_input("Password", type="password", key="login_password")
 
@@ -37,7 +38,18 @@ def login_page():
         new_password = st.text_input("New Password", type="password", key="signup_password")
 
         if st.button("Submit Signup"):
-            add_user(new_username, new_password)
-            st.success("User registered successfully! Please login.")
-            st.session_state['show_signup'] = False
-            st.session_state['show_login'] = True
+            if new_username and new_password:  # Check if fields are not empty
+                try:
+                    add_user(new_username, new_password)
+                    # Auto-login after successful signup
+                    st.session_state['logged_in'] = True
+                    st.session_state['username'] = new_username
+                    st.session_state['page'] = 'home'
+                    st.query_params['page'] = 'home'
+                    st.query_params["logged_in_user"] = new_username
+                    st.success("Registration successful! Logging you in...")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error creating user: {str(e)}")
+            else:
+                st.error("Please fill in all fields")
