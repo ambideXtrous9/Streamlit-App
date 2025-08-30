@@ -14,6 +14,7 @@ import yfinance as yf
 import ta
 import os 
 import re
+from langchain_openai import ChatOpenAI
 
 def StockScan():
     if not st.session_state.get('logged_in'):
@@ -22,8 +23,7 @@ def StockScan():
 
 load_dotenv()
 
-model_name = "qwen/qwen3-32b"
-temperature = 0.3
+
 
 
 nifty500_df = pd.read_csv("StockScreener/ind_nifty500list.csv")
@@ -35,29 +35,45 @@ microcap250_df['YFSYMBOL'] = microcap250_df['Symbol'] + '.NS'
 df500 = list(nifty500_df['YFSYMBOL'])
 microcap250 = list(microcap250_df['YFSYMBOL'])
 
-complist = list(nifty500_df['Company Name'])
+nifty500complist = list(nifty500_df['Company Name'])
+microcap250complist = list(microcap250_df['Company Name'])
+
+complist = nifty500complist + microcap250complist
+stack_df = pd.concat([nifty500_df, microcap250_df], ignore_index=True).drop_duplicates().reset_index(drop=True)
 
 def get_yf_symbol(company_name: str):
-    match = nifty500_df.loc[nifty500_df['Company Name'] == company_name, 'YFSYMBOL']
+    match = stack_df.loc[stack_df['Company Name'] == company_name, 'YFSYMBOL']
     return match.iloc[0] if not match.empty else None
 
 rocket_icon = '<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" alt="Rocket" width="50" height="50" />'
 heading = f"## {rocket_icon} AI Financial Research Report"
 
-chart_icon = '<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Chart%20Increasing%20with%20Yen.png" alt="Chart Increasing with Yen" width="40" height="40" />'
-final_report = f"### {chart_icon} Final Report"
 
+temperature = 0.1
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-
+model_name = "qwen/qwen3-32b" #"deepseek-r1-distill-llama-70b" #"moonshotai/kimi-k2-instruct" #"qwen/qwen3-32b"
 
 llm = ChatGroq(
     model_name=model_name,
-    temperature=temperature
+    temperature=temperature,
+    seed = 42,
+    tags=["StockAgentExpert"]
 )
+
+# OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
+
+# model_name = "qwen/qwen3-4b:free"
+
+# llm = ChatOpenAI(model=model_name, 
+#                  temperature=temperature, 
+#                  openai_api_base="https://openrouter.ai/api/v1",
+#                  openai_api_key=OPENROUTER_API_KEY, 
+#                  seed = 42,
+#                  tags=["StockAgentExpert"])
 
 
 # Initialize the GNews object
-google_news = GNews(language='en', period='30d',max_results=20)
+google_news = GNews(language='en', period='30d',max_results=10)
 
 from StockScreener.mlpchart.mlpchart import chart
 
@@ -69,104 +85,66 @@ stock_agent = create_react_agent(
         prompt = (
             """
             **Role:**  
-            You are a **Senior Equity Research Analyst and Trader (20+ years experience)**. 
-            Analyze a stock rigorously using fundamentals, technicals, ownership, news, and macro data.
-            Provide an **institutional-grade, data-driven recommendation**.  
-            **Analyze Technical Indicators as Experienced Trader:**
+            You are a **Senior Equity Research Analyst & Trader (20+ yrs exp)**.  
+            Deliver an **institutional-grade, data-driven stock report** with fundamentals, technicals, ownership, news, macro, and price roadmap. 
+            **Technical Indicators Knowledge:** 
+                - RSI: <30 = Oversold (bounce), >70 = Overbought (pullback), else Neutral.
+                - MAs/MACD: 50>200 = Bullish, 50<200 = Bearish; MACD>Signal = Buy, else Sell/Neutral.
             ---
-            ## 🔹 Report Methodology 
-            For each section:  
-            - **Action:** Metrics analyzed  
-            - **Observation:** Factual insights  
-            
-            ---
-            
-            ** Report Output Format:**
+            ** Report Format:**
             
             ## 📊 <Equity Name Here>
 
-            ### 1. 📌 Investment Call
-            - **Stock:** {Stock Name} ({Ticker})
-            - **Call:** **Buy / Hold / Sell**
-            - **Conviction:** High / Medium / Low
-            - **CMP:** ₹{Price}
-            - **12M Target:** ₹{Target} (**+XX%/-XX% vs CMP**)
-            - **Quick Rationale:** {Valuation/Growth/Sector driver}
+            ### 🏦 Fundamentals  
+            | Metric | Value/Comparison | Interpretation |
+            |--------|------------------|----------------|
+            | **Valuation** | P/E {X} vs Sector {Y}, 5Y Median {Z} | {Cheap 🟢 / Expensive 🔴} |
+            | **Earnings** | Rev {X%} YoY, EBITDA {Y%}, PAT {Z%} | {Strong 🟢 / Weak 🔴} |
+            | **Balance Sheet** | D/E {X}, ROE {Y%}, CF {Good/Weak} | {Healthy 🟢 / Stressed 🔴} |
+            | **Ownership** | FII/DII {Trend}, Promoter {X%} | {Confidence 🟢 / Weakness 🔴} |
+            | **Sector** | CAGR {X%}, Policy {Yes/No} | {Growth 🟢 / Headwind 🔴} |
+            | **Shareholding** | Promoters: {X%} (Δ {+/-}), FII: {X%} (Δ {+/-}), DII: {X%} (Δ {+/-}), Retail: {X%} (Δ {+/-}) | {Confidence 🟢 / FII Accumulation 🟢 / Retail Overhang 🔴} |
+            | **Quarterly Profit/Loss** | {Quarterly Profit/Loss} | {Profitable 🟢 / Unprofitable 🔴} | {Growth 🟢 / Decline 🔴} |
+            | **Yearly Profit/Loss** | {Yearly Profit/Loss} | {Profitable 🟢 / Unprofitable 🔴} | {Growth 🟢 / Decline 🔴} |
 
             ---
 
-            ### 2A. 🏦 Fundamentals
-            | Factor | Observation | Implication |
-            |--------|-------------|-------------|
-            | **Valuation vs Peers** | P/E {X} vs Sector {Y}, 5Y median {Z} | Attractive / Expensive |
-            | **Earnings** | Rev {X%} YoY, EBITDA {Y%}, PAT {Z%} | Strong / Weak |
-            | **Balance Sheet** | D/E {X}, ROE {Y%}, Cashflow {Good/Weak} | Healthy / Stressed |
-            | **Ownership** | FII/DII {Trend}, Promoter {X%} | Confidence / Weakness |
-            | **Sector** | Industry CAGR {X%}, policy {Yes/No} | Growth / Headwind |
+            ### 📉 Technicals  
+            | Indicator | Reading | Signal/Implication |
+            |-----------|---------|--------------------|
+            | **RSI** | {Value} | {OB 🔴 / OS 🟢 / Neutral ⚪} |
+            | **MAs** | 50DMA vs 200DMA | {Bullish 🟢 / Bearish 🔴} |
+            | **MACD** | {Signal} | {Buy 🟢 / Sell 🔴 / Neutral ⚪} |
+            | **S/R** | ₹{Support}/{Resistance} | {Good RR 🟢 / Weak RR 🔴} |
+            | **Volume** | {Above/Below Avg} | {Strength 🟢 / Weakness 🔴} |
+            | **Volatility** | {X%} | {High 🔴 / Low 🟢} |
+            | **Momentum** | {X%} | {Strong 🟢 / Weak 🔴} |
+            | **Trend** | Bullish/Bearish | {Strong 🟢 / Weak 🔴} |
+
+            ### 📰📊🌍 Market Drivers, Outlook & Summary  
+
+            Write a crisp analyst-style commentary 5-6 sentences that blends **market drivers, relative performance, and forward outlook** into one flowing article. Cover:  
+            - **Key News/Events** and their likely impact on sentiment (Positive / Negative / Neutral).  
+            - **Relative Performance vs Nifty** over 1M, 3M, 1Y, and 3Y CAGR, highlighting alpha and whether the stock has Outperformed / Underperformed.  
+            - **Macro Drivers** (rates, inflation, currency, commodities, global/policy cues) and how they shape the stock’s risk–reward.  
+            - **Forward Outlook** with roadmap (3M/6M/12M levels), key drivers (earnings, orders, margins, sector growth) and major risks.  
+            - **Final Call** (Buy/Hold/Sell) with upside % to target, entry, stop-loss, and bias (Bullish/Neutral/Cautious).  
+            - **Snapshot**: fundamentals (valuation/growth), technicals (trend & S/R), ownership (FII/DII/promoter stance), and catalyst triggers.  
+            - End with a **highlighted conclusion** on overall outlook: *Supportive / Neutral / Headwind*.  
+
+            👉 Tone must be **sharp, research-broker style**, bold points, written in **paragraph format**, with smooth transitions between news, performance, macro, and outlook.  
+
             ---
-            ### 2B. 📉 Technicals
-            | Indicator | Observation | Signal |
-            |-----------|-------------|--------|
-            | **RSI** | {Value} | OB/OS/Neutral |
-            | **MAs** | 50DMA vs 200DMA | Bullish / Bearish |
-            | **MACD** | {Crossover} | Buy / Sell / Neutral |
-            | **Support/Resistance** | ₹{X} / ₹{Y} | Risk–Reward |
-            | **Volume** | >/< 30D avg | Confirmation / Weakness |
-            ---
-            ### 2C. 🧾 Shareholding
-            | Category | Current (%) | Prev (%) | Change |
-            |----------|-------------|----------|--------|
-            | Promoters | {X} | {Y} | {Δ} |
-            | FII | {X} | {Y} | {Δ} |
-            | DII | {X} | {Y} | {Δ} |
-            | Retail | {X} | {Y} | {Δ} |
-            *Implication: {Promoter confidence / FII flows / Retail overhang}*
-            ---
-            ### 2D. 📰 Key News
-            **Explain Key News(**Headlines**) with their Impact(**Positive/Negative**) on the stock**
-            ---
-            ### 2E. 📊 Return vs Benchmark
-            | Period | Stock (%) | Nifty (%) | Alpha |
-            |--------|-----------|-----------|-------|
-            | 1M | {X} | {Y} | {Δ} |
-            | 3M | {X} | {Y} | {Δ} |
-            | 1Y | {X} | {Y} | {Δ} |
-            | 3Y CAGR | {X} | {Y} | {Δ} |
-            *Implication: Outperform / Underperform*
-            ---
-            ### 2F. 🌍 Macro Influence
-            - **Rates/Inflation:** {Impact}  
-            - **Currency:** {Impact}  
-            - **Commodities:** {Impact}  
-            - **Policy/Regulation:** {Impact}  
-            - **Global Cues:** {Impact}  
-            *Net: Supportive / Neutral / Headwind (Summarize all the macro impact on the stock)*
-            ---
-            ### 3. 📈 Price Roadmap & Forward Outlook  
-            | Horizon | Price Estimate | Basis of Projection | Risk Factors |
-            |---------|----------------|---------------------|--------------|
-            | **3M (Near-term)** | ₹{Short} | Driven by {Q earnings, sector sentiment, technical breakout, FII flows} | {Volatility, macro events, crude prices} |
-            | **6M (Mid-term)** | ₹{Medium} | {Earnings momentum, order book visibility, policy tailwinds, margin trend} | {Global slowdown, interest rate risks} |
-            | **12M (Long-term)** | ₹{Target} | {Structural growth drivers, market share gains, valuation rerating potential} | {Execution risk, competition, regulation} |
-            *Analyst Bias:* {Bullish / Neutral / Cautious}, assuming {X%} CAGR in earnings over FY{25–27}.
-            ---
-            ### 4. ⚖️ Risk–Reward
-            **Risks:** Explain the risks from Fundamentals, Technicals, Ownership, News, Macro  
-            **Catalysts:** Explain the catalysts from Fundamentals, Technicals, Ownership, News, Macro  
-            ---
-            ### 5. 📝 Executive Summary
-            - **Call:** {Buy/Hold/Sell}, {XX%} upside to ₹{Target}  
-            - **Fundamentals:** {Valuation, earnings, balance sheet}  
-            - **Technicals:** {Trend, support/resistance}  
-            - **Ownership:** {FII/DII trend, promoter stance}  
-            - **News:** {Most impactful trigger}  
-            - **Returns vs Nifty:** {Out/Underperform}  
-            - **Macro Impact:** {Key driver}  
-            - **Entry Zone:** ₹{X}, **Stop Loss:** ₹{Y}  
-            ---
-            ### Final Verdict : **Price Target with Conviction and Timeframe summarising all the above points**
+            ### 📌 Investment Call:  
+            - **Stock:** {Name} ({Ticker})  
+            - **CMP:** ₹{X} 
+            - **Call:** **Buy / Hold / Sell** | Conviction: **High / Med / Low**  
+            - **Target:** ₹{Y} | **SL:** ₹{Z} | **Timeframe:** M  (**+/-Z% vs CMP**)  
+            - **Rationale:** {Valuation / Growth / Sector driver}  
+            - **Summary:** {Summary of above all analysis}
             """
         )
+
 
     )
 
@@ -178,8 +156,7 @@ def stock_node(fundamentals,shareholding,technical_indicators,news):
     user_msg = {
         "role": "user",
         "content": (
-            f"Do the research on the Stock based on provided data and latest news:\n\n"
-            f"**Fundamentals**: {fundamentals}\n\n**Yearly and Quarterly Profit/Loss Data and Shareholding of FII and DIIs**: {shareholding}\n\n**Technical Indicators**: {technical_indicators}\n\n**News**: {news}"
+            f"**Fundamentals**: {fundamentals}\n\n**Yearly and Quarterly PL and Shareholding**: {shareholding}\n\n**Technical Indicators**: {technical_indicators}\n\n**News**: {news}"
         )
     }
 
@@ -695,7 +672,6 @@ def reportGenerator(option):
                 with st.expander("🧠 Agent Reasoning (Click to Expand)"):
                     st.markdown(thinking_part)
 
-                st.markdown(final_report, unsafe_allow_html=True)
                 st.markdown(report_without_think)
     
 
@@ -797,62 +773,4 @@ def StockScan():
         if option:
             reportGenerator(option)
     
-    elif selected_option == "Volume Breakout MICROCAP250":
-        stockList = []
-        if "stockList" not in st.session_state:
-            st.session_state.stockList = []
-            
-        if st.button("Run Scan"):
-            st.title("Running Scan on MICROCAP250")
-            stockList = BreakoutVolume(microcap250)
-            st.session_state.stockList = stockList  # Store in session state
-            
-        
-        if st.session_state.stockList:
-            st.success(f'Scan Complete : {len(st.session_state.stockList)} Stocks Found', icon="✅")
-            
-            st.subheader("Stocks")
-            cols = st.columns(2)
-            for i, stock in enumerate(st.session_state.stockList):
-                cols[i % 2].write(stock)
-            
-            option = st.selectbox(
-                "List of Stocks",
-                st.session_state.stockList,
-                index=None,
-                placeholder="Select the Stock",
-            )
-
-            st.write("You selected:", option)
-            
-            if option:
-                reportGenerator(option)
-    
-    elif selected_option == "Stocks Analysis":
-
-        option = st.selectbox(
-                "List of Stocks",
-                complist,
-                index=None,
-                placeholder="Select the Stock",
-            )
-
-        st.write("You selected:", option)
-        
-        symbol = None
-        if option:
-            symbol = get_yf_symbol(option)
-
-        if symbol:
-            reportGenerator(symbol)
-        
-
-                
-           
-           
-           
-        
-        
-
-    
-    
+   

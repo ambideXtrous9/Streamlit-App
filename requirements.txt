@@ -36,6 +36,7 @@ langgraph
 duckduckgo-search 
 langchain-core 
 langchain-community 
+langchain_openai
 langchain-groq 
 sentence-transformers
 python-dotenv
