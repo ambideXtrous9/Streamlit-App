@@ -305,8 +305,8 @@ def critic_node(state: AgentState) -> AgentState:
         "content": (
             "Here is the draft article:\n\n"
             f"{state['draft']}\n\n"
-            "Please critique it, checking for factual accuracy and clarity."
-            "First Give 'approval' by saying 'yes' or 'no' followed by concise and brief reasoning."
+            "Please critique it, checking for factual accuracy and clarity mix and match with Indian mythology and Harry Potter Universe."
+            "First Give 'approval' by saying 'yes' or 'no' followed by concise and brief reasoning within 3 sentences."
         )
     }
 
