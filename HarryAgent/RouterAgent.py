@@ -33,30 +33,33 @@ parser = PydanticOutputParser(pydantic_object=Classify)
 format_instructions = parser.get_format_instructions()
 
 
-agent = create_react_agent(
-    model=llm,
-    tools=[],
-    prompt=(
-        "You are an expert in Harry Potter Universe.\n\n"
-        "Your output MUST conform exactly to this JSON schema (no extra fields):\n"
-        f"{format_instructions}\n\n"
-        "Add a key `classification` with value either \"generic\" or \"harry\" or \"exit\":\n"
-        "- If the query is a greeting or unrelated to Harry Potter topics, set `classification` to \"generic\".\n"
-        "- If the query is related to Harry Potter topics set `classification` to \"harry\".\n\n"
-        "- If the query is to exit the conversation, set `classification` to \"exit\".\n\n"
-        "Also add a key `reply`:\n"
-        "- If `classification` is 'generic', `reply` must be a natural language response to the query referring to the chat history for context. Also encourage user to ask Harry Potter related questions.\n"
-        "- If `classification` is 'harry', `reply` must be the string \"Harry Potter\".\n\n"
-        "- If `classification` is 'exit', `reply` must be the string \"exit\".\n\n"
-        "IMPORTANT: The output must be *only* the JSON object—no extra text or reasoning.\n"
-    )
-)
-
 
 def AgentClassifyNode(topic):
 
     max_retries = 3
     attempt = 0
+    
+    prompt=(
+        """
+        You are an expert in Harry Potter Universe.
+        Your output MUST conform exactly to this JSON schema (no extra fields):
+        {format_instructions}
+        Add a key `classification` with value either \"generic\" or \"harry\" or \"exit\":\n
+        - If the query is a greeting or unrelated to Harry Potter topics, set `classification` to \"generic\".\n
+        - If the query is related to Harry Potter or Mix of Indian Mythology and Harry Potter topics set `classification` to \"harry\".\n\n
+        - If the query is to exit the conversation, set `classification` to \"exit\".\n\n
+        Also add a key `reply`:\n
+        - If `classification` is 'generic', `reply` must be a natural language response to the query referring to the chat history for context. Also encourage user to ask Harry Potter related questions.\n
+        - If `classification` is 'harry', `reply` must be the string \"Harry Potter\".\n\n
+        - If `classification` is 'exit', `reply` must be the string \"exit\".\n\n
+        IMPORTANT: The output must be *only* the JSON object—no extra text or reasoning.\n
+        """
+    )
+    
+    sys_prompt = {
+        "role": "system",
+        "content": prompt.format(format_instructions=format_instructions)
+    }
 
     user_msg = {"role": "user", "content": f"Classify this topic : {topic}"}
 
@@ -66,13 +69,11 @@ def AgentClassifyNode(topic):
         
         
         # Run agent and capture full assistant output (stream or no-stream)
-        llm_response = agent.invoke({"messages": [user_msg]})
-        assistant_msg = llm_response["messages"][-1]
-        ai_content = assistant_msg.content
+        response = llm.invoke([sys_prompt, user_msg])
 
         try :
             # Parse the final JSON into Pydantic model
-            article: Classify = parser.parse(ai_content)
+            article: Classify = parser.parse(response.content)
             return article.model_dump()
 
         except ValidationError as e:

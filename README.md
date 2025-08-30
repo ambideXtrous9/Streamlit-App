@@ -14,7 +14,7 @@ Welcome to the Streamlit Applications Hub! This repository is a collection of in
 ## 📋 Key Features
 
 - 📊 **Stock Screener**: Advanced stock market analysis and screening tool
-- 📖 **NewsQALLM**: Intelligent news analysis using LLMs
+- 📖 **HarryAgent**: Intelligent news analysis using LLMs
 - 🎯 **Logo Detection**: YOLO-based logo recognition system
 - 📈 **Data Clustering**: Interactive clustering visualization
 - 🧠 **Image Classifier**: Image classification using Various Models
@@ -24,7 +24,7 @@ Welcome to the Streamlit Applications Hub! This repository is a collection of in
 ```
 Streamlit-App/
 ├── StockScreener/        # Stock market analysis tools
-├── NewsQALLM/           # Harry Potter X Mythology
+├── HarryAgent/           # Harry Potter X Mythology
 ├── LogoYolo/            # Logo detection system
 ├── Clustering/          # Clustering algorithms
 ├── HPVdb/              # Harry Potter Books

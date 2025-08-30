@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage  # import AIMessage
 from langchain_community.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import CrossEncoder
 from langchain_core.tools import tool
 import torch
 import time
@@ -15,7 +16,7 @@ import streamlit as st
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os 
-from NewsQALLM.RouterAgent import classify_node
+from HarryAgent.RouterAgent import classify_node
 
 
 load_dotenv()
@@ -25,7 +26,7 @@ ddg_search = DuckDuckGoSearchResults()
 
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
-model_name = "qwen/qwen3-32b"
+model_name = "qwen/qwen3-32b" #"moonshotai/kimi-k2-instruct"
 temperature = 0.7
 
 
@@ -75,42 +76,32 @@ embeddings = HuggingFaceEmbeddings(
     encode_kwargs=encode_kwargs
 )
 
+# --- Cross-Encoder reranker model ---
+reranker_model_name = "cross-encoder/ms-marco-TinyBERT-L-2-v2"
+reranker = CrossEncoder(reranker_model_name, device=device)
 
-reranker_model = "sentence-transformers/all-MiniLM-L6-v2"
-
-# Load BGE reranker model and tokenizer once (outside the function)
-reranker_tokenizer = AutoTokenizer.from_pretrained(reranker_model)
-reranker_model = AutoModel.from_pretrained(reranker_model)
-
-
+# --- Load FAISS vector DB ---
 vectordb_vectr = FAISS.load_local(
-        "HPVdb", 
-        embeddings, 
-        allow_dangerous_deserialization=True
-    )
-
+    "HPVdb", 
+    embeddings, 
+    allow_dangerous_deserialization=True
+)
 
 @tool
-def retrieve_context(query,n_docs=5):
-
-    """Retrieve relevant documents from Harry Potter books to answer query"""
-
+# --- Retrieval + Reranking ---
+def retrieve_context(query, n_docs=8):
+    """Retrieve and rerank documents from FAISS"""
+    
     # Step 1: Initial similarity search
-    retrieved_docs = vectordb_vectr.similarity_search(query, k=10)  # get more docs for reranking
+    retrieved_docs = vectordb_vectr.similarity_search(query, k=10)
+
+    # Step 2: Prepare (query, doc) pairs
     pairs = [(query, doc.page_content) for doc in retrieved_docs]
 
-    # Step 2: Format input for BGE reranker (BGE expects "[CLS] query [SEP] passage [SEP]")
-    texts = [f"[CLS] {q} [SEP] {p} [SEP]" for q, p in pairs]
-    inputs = reranker_tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    # Step 3: Cross-encoder scoring
+    scores = reranker.predict(pairs)
 
-    # Step 3: Compute relevance scores
-    with torch.no_grad():
-        model_output = reranker_model(**inputs)
-        scores = model_output.last_hidden_state[:, 0, :]  # CLS token
-        scores = torch.nn.functional.normalize(scores, p=2, dim=1)  # normalize if needed
-        scores = scores[:, 0]  # Take only the first dim for ranking (simplified relevance proxy)
-
-    # Step 4: Sort documents by score
+    # Step 4: Sort by scores
     reranked = sorted(zip(scores, retrieved_docs), key=lambda x: x[0], reverse=True)
     top_docs = [doc.page_content for _, doc in reranked[:n_docs]]
 
@@ -210,11 +201,58 @@ def writer_node(state: AgentState) -> AgentState:
     agent = create_react_agent(
         model=llm,
         tools = [ddg_search_tool],
-        prompt=(
-            "You are an Article Writer. Use the `DuckDuckGoSearch` to find additional relevant facts, "
-            "Mix and Relate topic and research with Indian Mythology and Harry Potter Universe"
-            "Follow the ReAct pattern: label each step as `Thought:`, `Action:`, `Observation:`, "
-            "then finally `Final Answer:` with your article."
+        prompt = (
+            """
+            You are an Expert Article Writer having knowledge in both **Indian ancient history and mythology** and **Harry Potter Universe**. 
+            Use the `DuckDuckGoSearch` to find additional relevant facts, 
+            Mix and Relate topic and research with Indian Mythology and Harry Potter Universe
+            Follow the ReAct pattern: label each step as `Thought:`, `Action:`, `Observation:`, 
+            then finally `Final Answer:` with your article.
+            ---
+
+            ## ✨ Final Answer Format
+            
+            ## 📝 <Interesting Article Headline Here>
+
+            ### Introduction
+            Provide a compelling hook, introduce the topic, and explain why it’s relevant.  
+            Briefly hint at how Indian Mythology and the Harry Potter universe will be connected.  
+
+            ---
+
+            ### Section 1: <Section 1 Name Here>
+            - Explain the main subject (from search results + reasoning).  
+            - Add real-world context.  
+
+            ---
+
+            ### Section 2: <Section 2 Name Here>
+            - Relate the subject to Indian myths, legends, gods, or symbolism.  
+            - Highlight cultural depth and philosophical meaning.  
+
+            ---
+
+            ### Section 3: <Section 3 Name Here>
+            - Map the theme to characters, spells, creatures, or story arcs in HP.  
+            - Draw symbolic or narrative parallels.  
+
+            ---
+
+            ### Section 4: <Section 4 Name Here>
+            - Blend insights from research, mythology, and Harry Potter into a unified perspective.  
+            - Provide unique, creative analysis.  
+            
+            ### Section 5: <Section 5 Name Here>
+            - Provide unique, creative analysis.  
+
+            ---
+
+            ### Conclusion
+            - Summarize the key takeaways.  
+            - End with a thought-provoking idea or a reflective closing line.  
+
+            ---
+            """
         )
 
     )
@@ -254,9 +292,11 @@ def critic_node(state: AgentState) -> AgentState:
         model=llm,
         tools = [],
         prompt=(
-            "You are a Critical Reviewer having Knowledge in Both Harry Potter Universe and Indian Mythology."
-            "First Give your 'approval' by saying 'Yes' or 'No' by reading the draft."
-            "Use Your Intelligence to evaluate the draft and Give your Brief Comments and Reasoning."
+            """
+            You are a Critical Reviewer having Knowledge in Both **Harry Potter Universe** and **Indian Mythology**.
+            First Give your 'approval' by saying 'Yes' or 'No' by reading the draft.
+            Use Your Intelligence to evaluate the draft and Give your **Brief Comments and Reasoning** within 3 sentences.
+            """
         )
     )
 

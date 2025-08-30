@@ -3,7 +3,7 @@ from util import GitHubStats, HomePage, Social, YoloforLogo
 from Clustering.cluster_util import showData,Cluster
 from ImageClassifier.classifier import model_card
 from StockScreener.screener import StockScan
-from NewsQALLM.chatbot import ChatBot
+from HarryAgent.chatbot import ChatBot
 from login import login_page
 
 def navigator():

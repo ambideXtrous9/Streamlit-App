@@ -1,5 +1,5 @@
 import streamlit as st
-from NewsQALLM.HpAgent import GraphBuild
+from HarryAgent.HpAgent import GraphBuild
 import sqlite3
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.runnables import RunnableConfig
