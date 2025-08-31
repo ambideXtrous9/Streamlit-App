@@ -31,9 +31,13 @@ def Cluster():
     if selected_option == "K-Means":
         # Slider for number of clusters
         n_clusters = st.slider("Number of clusters", 1, 10, st.session_state.n_clusters)
-        st.session_state.n_clusters = n_clusters
         
-        # Run K-Means directly when slider changes
+        if n_clusters != st.session_state.get('prev_n_clusters', None):
+            st.session_state.n_clusters = n_clusters
+            st.session_state.prev_n_clusters = n_clusters
+            st.rerun()
+            
+        # Run K-Means with current parameters
         fig = kmeans(st.session_state.n_clusters)
         st.plotly_chart(fig, use_container_width=True)
         st.write('''💡 Why don't you try DBSCAN..!!''')
@@ -41,9 +45,13 @@ def Cluster():
     elif selected_option == "DBSCAN":
         # Slider for epsilon (distance threshold)
         eps = st.slider("Epsilon (distance threshold)", 1, 40, st.session_state.eps)
-        st.session_state.eps = eps
         
-        # Run DBSCAN directly when slider changes
+        if eps != st.session_state.get('prev_eps', None):
+            st.session_state.eps = eps
+            st.session_state.prev_eps = eps
+            st.rerun()
+            
+        # Run DBSCAN with current parameters
         fig = DBScan(st.session_state.eps)
         st.plotly_chart(fig, use_container_width=True)
         
