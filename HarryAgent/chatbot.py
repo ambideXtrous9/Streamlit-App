@@ -4,6 +4,27 @@ import sqlite3
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.runnables import RunnableConfig
 import uuid
+from langfuse.langchain import CallbackHandler
+from langfuse import Langfuse, get_client
+
+
+# langfuse = Langfuse(
+#   secret_key="sk-lf-a61bf1a3-5388-4960-8de9-67c5b69348fa",
+#   public_key="pk-lf-2bc3ac3d-74d7-424e-880c-eee1ddd7f42c",
+#   host="http://localhost:3000"
+# )
+
+
+Langfuse(
+    public_key=st.secrets.get("LANGFUSE_PUBLIC_KEY"),
+    secret_key=st.secrets.get("LANGFUSE_SECRET_KEY"),
+    host=st.secrets.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+)
+langfuse = get_client()
+
+# Instantiate handler (no args)
+langfuse_handler = CallbackHandler()
+
 
 conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
 checkpointer = SqliteSaver(conn)
@@ -41,7 +62,7 @@ def ChatBot():
         # Checkpointer requires one or more of the following 'configurable' keys: thread_id
         thread_id = str(uuid.uuid4())
         thread_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        output = app.invoke(input={"topic": prompt, "review": "Write an awesome article on the topic."}, config=thread_config)
+        output = app.invoke(input={"topic": prompt, "review": "Write an awesome article on the topic."}, config={"thread_id":thread_id,"callbacks": [langfuse_handler]})
         
         if output.get("classification") and output.get("classification")["classification"] == "generic":
             st.chat_message("assistant").markdown(output["classification"]["reply"])

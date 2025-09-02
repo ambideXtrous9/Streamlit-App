@@ -15,6 +15,7 @@ import ta
 import os 
 import re
 from langchain_openai import ChatOpenAI
+from langfuse import observe
 
 def StockScan():
     if not st.session_state.get('logged_in'):
@@ -151,6 +152,7 @@ stock_agent = create_react_agent(
 # ---------------------------
 # 🧑‍🔬 Stock Researcher Agent
 # ---------------------------
+@observe()
 def stock_node(fundamentals,shareholding,technical_indicators,news):
     # Prepare the prompt
     user_msg = {

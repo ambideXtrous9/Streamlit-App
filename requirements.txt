@@ -44,6 +44,7 @@ langgraph-checkpoint-sqlite
 ddgs
 mcp
 langchain_mcp_adapters
+langfuse
 
 
 # sudo apt-get update

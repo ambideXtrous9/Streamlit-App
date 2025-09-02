@@ -5,7 +5,20 @@ import requests
 import torch 
 import os
 
+import os 
+# from langfuse import get_client
 
+# os.environ["LANGFUSE_PUBLIC_KEY"] = st.secrets["LANGFUSE_PUBLIC_KEY"]
+# os.environ["LANGFUSE_SECRET_KEY"] = st.secrets["LANGFUSE_SECRET_KEY"] 
+# os.environ["LANGFUSE_HOST"] = st.secrets["LANGFUSE_HOST"] 
+ 
+# langfuse = get_client()
+ 
+# Verify connection
+# if langfuse.auth_check():
+#     print("Langfuse client is authenticated and ready!")
+# else:
+#     print("Authentication failed. Please check your credentials and host.")
 
 os.environ["STREAMLIT_SERVER_ENABLE_FILE_WATCHER"] = "false"
 
