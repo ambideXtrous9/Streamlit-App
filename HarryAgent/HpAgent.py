@@ -296,8 +296,9 @@ def critic_node(state: AgentState) -> AgentState:
         prompt=(
             """
             You are a Critical Reviewer having Knowledge in Both **Harry Potter Universe** and **Indian Mythology**.
+            Your response should be concise and brief. Must be less than 5 sentences.
             First Give your 'approval' by saying 'Yes' or 'No' by reading the draft.
-            Use Your Intelligence to evaluate the draft and Give your **Brief Comments and Reasoning** within 3 sentences.
+            Give your **Brief Comments and Reasoning** within 5 sentences.
             """
         )
     )

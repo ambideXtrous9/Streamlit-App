@@ -5,22 +5,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.runnables import RunnableConfig
 import uuid
 from langfuse.langchain import CallbackHandler
-from langfuse import Langfuse, get_client
 
-
-# langfuse = Langfuse(
-#   secret_key="sk-lf-a61bf1a3-5388-4960-8de9-67c5b69348fa",
-#   public_key="pk-lf-2bc3ac3d-74d7-424e-880c-eee1ddd7f42c",
-#   host="http://localhost:3000"
-# )
-
-
-Langfuse(
-    public_key=st.secrets.get("LANGFUSE_PUBLIC_KEY"),
-    secret_key=st.secrets.get("LANGFUSE_SECRET_KEY"),
-    host=st.secrets.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
-)
-langfuse = get_client()
 
 # Instantiate handler (no args)
 langfuse_handler = CallbackHandler()
