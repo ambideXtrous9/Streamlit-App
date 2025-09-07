@@ -19,7 +19,7 @@ import uuid
 from langfuse.langchain import CallbackHandler
 import time
 from streamlit.runtime.scriptrunner import get_script_run_ctx
-from streamlit.runtime.scriptrunner.script_run_context import add_script_run_ctx
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 import asyncio
 
 langfuse_handler = CallbackHandler()
@@ -33,7 +33,7 @@ class ArticleResponse(TypedDict):
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 
-model_name = "moonshotai/kimi-k2-instruct" #"moonshotai/kimi-k2-instruct" "qwen/qwen3-32b"
+model_name = "qwen/qwen3-32b" #"moonshotai/kimi-k2-instruct"
 temperature = 0.0
 
 
@@ -216,7 +216,7 @@ def get_forecast(location: str, days: int = 3):
         return None
 
 
-def weatherAgent(state):
+async def weatherAgent(state):
     print("Weather Agent..")
     weather_agent = create_react_agent(
             model=llm,
@@ -250,7 +250,7 @@ def weatherAgent(state):
 
     start_time = time.time()
     
-    with st.spinner("Weather Agent Node in Progress…", show_time=True):
+    with st.spinner("Weather Agent in Progress…", show_time=True):
         result = weather_agent.invoke({"messages": [{"role": "user", "content": state['topic']}]})
     ai_content = result["messages"][-1].content
 
@@ -340,12 +340,12 @@ You are a Travel & Tour Guide Assistant. Suggest a tour plan based on the user q
 """
 
 
-def tourAgent(state):
+async def tourAgent(state):
     context = f"Based on User Query : {state['topic']} \nanalyze below Reports on Airbnb and Weather: {state['knowledge']}"
 
     start_time = time.time()
     
-    with st.spinner("Tour Agent Node in Progress…", show_time=True):
+    with st.spinner("Tour Agent in Progress…", show_time=True):
         response = llm.invoke([
             SystemMessage(content=touragentprompt),
             HumanMessage(content=context)
@@ -375,8 +375,7 @@ async_graph.add_edge("tourAgent", END)
 # Compile the async graph
 app = async_graph.compile()
 
-# Create a synchronous wrapper for the async graph
-import asyncio
+
 
 def sync_app(input_state):
     # Create a new event loop for the sync wrapper
