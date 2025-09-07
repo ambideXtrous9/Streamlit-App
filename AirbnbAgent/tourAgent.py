@@ -133,8 +133,8 @@ async def airbnbAgent(state):
                 end_time = time.time()
                 airbnb_time = end_time - start_time
                 
-                with st.chat_message("Agent"):
-                    st.markdown(f"**✅ AirBnb Agent Time :** {airbnb_time:.2f} seconds\n")
+                # with st.chat_message("Agent"):
+                #     st.markdown(f"**✅ AirBnb Agent Time :** {airbnb_time:.2f} seconds\n")
                 
                 return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
                 
@@ -263,8 +263,8 @@ async def weatherAgent(state):
     end_time = time.time()
     weather_time = end_time - start_time
     
-    with st.chat_message("Agent"):
-        st.markdown(f"**✅ Weather Agent Time :** {weather_time:.2f} seconds\n")
+    # with st.chat_message("Agent"):
+    #     st.markdown(f"**✅ Weather Agent Time :** {weather_time:.2f} seconds\n")
     
     return {"knowledge": [f"[Info from Weather Search]\n{ai_content}\n\n"]}
 
@@ -359,8 +359,8 @@ async def tourAgent(state):
 
     end_time = time.time()
     tour_time = end_time - start_time
-    with st.chat_message("Agent"):
-        st.markdown(f"**✅ Tour Agent Time :** {tour_time:.2f} seconds\n")
+    # with st.chat_message("Agent"):
+    #     st.markdown(f"**✅ Tour Agent Time :** {tour_time:.2f} seconds\n")
 
     return {"summary": response.content}
 
