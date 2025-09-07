@@ -1,1 +1,4 @@
 libgl1
+curl
+nodejs
+

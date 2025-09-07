@@ -5,7 +5,22 @@ import requests
 import torch 
 import os
 
+import os 
+from langfuse import Langfuse, get_client
 
+
+Langfuse(
+    public_key=st.secrets.get("LANGFUSE_PUBLIC_KEY"),
+    secret_key=st.secrets.get("LANGFUSE_SECRET_KEY"),
+    host=st.secrets.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+)
+langfuse = get_client()
+ 
+# Verify connection
+if langfuse.auth_check():
+    print("Langfuse client is authenticated and ready!")
+else:
+    print("Authentication failed. Please check your credentials and host.")
 
 os.environ["STREAMLIT_SERVER_ENABLE_FILE_WATCHER"] = "false"
 

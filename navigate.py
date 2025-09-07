@@ -4,6 +4,7 @@ from Clustering.cluster_util import showData,Cluster
 from ImageClassifier.classifier import model_card
 from StockScreener.screener import StockScan
 from HarryAgent.chatbot import ChatBot
+from AirbnbAgent.tourAgent import tourChat
 from login import login_page
 
 def navigator():
@@ -38,6 +39,7 @@ def navigator():
     elif page == "newsqa":
         if st.session_state.get('logged_in'):
             st.title("🪄:blue[Harry Potter X  Mythology]")
+            st.write("Ask anything about Harry Potter and Indian Mythology")
             ChatBot()
         else:
             st.session_state['redirect_after_login'] = "newsqa"
@@ -54,8 +56,17 @@ def navigator():
     elif page == "stockscreener":
         if st.session_state.get('logged_in'):
             st.title("🚀:blue[Stock Screener]")
+            st.write("This is a Stock Screener that can help you find stocks that are breaking out with volume.")
             st.title("Range Breakout with Volume")
             StockScan()
+        else:
+            login_page()
+
+    elif page == "tourAgent":
+        if st.session_state.get('logged_in'):
+            st.title("🏡:blue[MCP Powered Tour Agent]")
+            st.write("This is a Weather and MCP powered Airbnb tour agent that can help you plan your next vacation.")
+            tourChat()
         else:
             login_page()
         
