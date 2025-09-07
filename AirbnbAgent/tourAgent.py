@@ -1,4 +1,5 @@
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from mcp import ClientSession, StdioServerParameters
@@ -33,7 +34,7 @@ class ArticleResponse(TypedDict):
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 
-model_name = "qwen/qwen3-32b" #"moonshotai/kimi-k2-instruct"
+model_name = "moonshotai/kimi-k2-instruct" #"qwen/qwen3-32b" #
 temperature = 0.0
 
 
@@ -43,6 +44,11 @@ llm = ChatGroq(
     seed = 42,
     tags=["TourAgentExpert"]
 )   
+
+
+
+#llm = ChatOllama(model="qwen3:4b")  # Use a model available via Ollama
+
 
 async def airbnbAgent(state):
     # Get the current Streamlit context
@@ -377,14 +383,15 @@ app = async_graph.compile()
 
 
 
-def sync_app(input_state):
+def sync_app(topic, thread_id,callbacks):
     # Create a new event loop for the sync wrapper
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
     try:
         # Run the async app with the input state
-        result = loop.run_until_complete(app.ainvoke(input_state))
+        config={"thread_id":thread_id,"callbacks": [callbacks]}
+        result = loop.run_until_complete(app.ainvoke(input={"topic": topic}, config=config))
         return result
     finally:
         # Clean up the loop
@@ -413,13 +420,7 @@ def tourChat():
 
         # Get the assistant's response using the sync_app wrapper for async operations
         thread_id = str(uuid.uuid4())
-        output = sync_app({
-            "topic": prompt,
-            "config": {
-                "configurable": {"thread_id": thread_id},
-                "callbacks": [langfuse_handler]
-            }
-        })
+        output = sync_app(prompt, thread_id, langfuse_handler)
         
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
