@@ -382,20 +382,39 @@ async_graph.add_edge("tourAgent", END)
 app = async_graph.compile()
 
 
-
-def sync_app(topic, thread_id,callbacks):
-    # Create a new event loop for the sync wrapper
+        
+def sync_app(topic, thread_id, callbacks):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
+
+    async def run_app():
+        config = {"thread_id": thread_id, "callbacks": [callbacks], "run_name": "tour_agent"}
+        
+        # One assistant message container
+        message_box = st.chat_message("assistant")
+        text_placeholder = message_box.empty()
+        full_text = ""
+
+        async for event in app.astream_events(input={"topic": topic}, config=config, version="v2"):
+            if (
+                event["event"] == "on_chat_model_stream"
+                and event["metadata"].get("langgraph_node") == "tourAgent"
+            ):
+                chunk = event["data"]["chunk"].content
+                full_text += chunk
+                text_placeholder.markdown(full_text)
+                await asyncio.sleep(0.01)  # push updates
+
+        # return final accumulated text
+        return full_text
+
     try:
-        # Run the async app with the input state
-        config={"thread_id":thread_id,"callbacks": [callbacks],"run_name": "tour_agent"}
-        result = loop.run_until_complete(app.ainvoke(input={"topic": topic}, config=config))
+        result = loop.run_until_complete(run_app())
         return result
     finally:
-        # Clean up the loop
         loop.close()
+
+
 
 def tourChat():
     if not st.session_state.get('logged_in'):
@@ -421,10 +440,6 @@ def tourChat():
 
         # Get the assistant's response using the sync_app wrapper for async operations
         thread_id = str(uuid.uuid4())
-        output = sync_app(prompt, thread_id, langfuse_handler)
-        
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            st.markdown(output["summary"])
-            # Add assistant response to chat history
-            st.session_state[session_key].append({"role": "assistant", "content": output["summary"]})
+        response = sync_app(prompt, thread_id, langfuse_handler)
+        # Add assistant response to chat history
+        st.session_state[session_key].append({"role": "assistant", "content": response})
