@@ -7,6 +7,7 @@ yolo = "https://images.squarespace-cdn.com/content/v1/5a42a3000abd044bd3244bf2/1
 imgclassifier = "https://mlnotebook.github.io/img/CNN/poolfig.gif"
 cluster = "https://cdn.dribbble.com/userupload/20456242/file/original-f31f3824dec1d33b1abf5895ce03de45.gif"
 boom = "boom.png"
+mcpairbnb = "mcp_airbnb.png"
 
 # Function to manage navigation
 def navigate(page):
@@ -58,13 +59,26 @@ def SideBar():
                 st.rerun()
 
         # 🔮 Agent : Harry Potter X Mythology
-        if st.button("🔮Agent : Harry Potter X Mythology"):
+        if st.button("🪄 Harry Potter X Mythology"):
             st.session_state["sidebar_image"] = harry
             if st.session_state.get('logged_in'):
                 navigate("newsqa")
                 st.rerun()
             else:
                 st.session_state['redirect_after_login'] = "newsqa"
+                st.session_state['page'] = 'login'
+                st.session_state['show_login'] = True
+                st.session_state['show_signup'] = False
+                st.rerun()
+
+        # 🔮 Agent : MCP Powered Airbnb Tour Agent
+        if st.button("🏡 Tour Agent"):
+            st.session_state["sidebar_image"] = mcpairbnb
+            if st.session_state.get('logged_in'):
+                navigate("tourAgent")
+                st.rerun()
+            else:
+                st.session_state['redirect_after_login'] = "tourAgent"
                 st.session_state['page'] = 'login'
                 st.session_state['show_login'] = True
                 st.session_state['show_signup'] = False
