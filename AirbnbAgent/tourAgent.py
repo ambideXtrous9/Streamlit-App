@@ -390,7 +390,7 @@ def sync_app(topic, thread_id,callbacks):
     
     try:
         # Run the async app with the input state
-        config={"thread_id":thread_id,"callbacks": [callbacks]}
+        config={"thread_id":thread_id,"callbacks": [callbacks],"run_name": "tour_agent"}
         result = loop.run_until_complete(app.ainvoke(input={"topic": topic}, config=config))
         return result
     finally:
@@ -402,12 +402,13 @@ def tourChat():
         st.warning("Please log in to access this feature.")
         return
     
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    # Initialize chat history with a unique key for this section
+    session_key = "tour_agent_messages"
+    if session_key not in st.session_state:
+        st.session_state[session_key] = []
 
     # Display chat messages from history on app rerun
-    for message in st.session_state.messages:
+    for message in st.session_state[session_key]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
@@ -416,7 +417,7 @@ def tourChat():
         # Display user message in chat message container
         st.chat_message("user").markdown(prompt)
         # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state[session_key].append({"role": "user", "content": prompt})
 
         # Get the assistant's response using the sync_app wrapper for async operations
         thread_id = str(uuid.uuid4())
@@ -425,7 +426,5 @@ def tourChat():
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(output["summary"])
-
-
-        # Add assistant response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": output["summary"]})
+            # Add assistant response to chat history
+            st.session_state[session_key].append({"role": "assistant", "content": output["summary"]})
