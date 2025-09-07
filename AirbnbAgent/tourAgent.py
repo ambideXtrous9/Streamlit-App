@@ -1,5 +1,4 @@
 from langchain_groq import ChatGroq
-from langchain_ollama import ChatOllama
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from mcp import ClientSession, StdioServerParameters
@@ -365,21 +364,18 @@ async def tourAgent(state):
     return {"summary": response.content}
 
 
-# Create an AsyncGraph for the async functions
 async_graph = StateGraph(ArticleResponse)
 async_graph.add_node("weatherAgent", weatherAgent)
 async_graph.add_node("airbnbAgent", airbnbAgent)
 async_graph.add_node("tourAgent", tourAgent)
 
-# Define the graph edges
 async_graph.add_edge(START, "weatherAgent")
 async_graph.add_edge(START, "airbnbAgent")
 async_graph.add_edge("weatherAgent", "tourAgent")
 async_graph.add_edge("airbnbAgent", "tourAgent")
 async_graph.add_edge("tourAgent", END)
 
-# Compile the async graph
-app = async_graph.compile()
+app = async_graph.compile(checkpointer=InMemorySaver())
 
 
         
@@ -390,7 +386,6 @@ def sync_app(topic, thread_id, callbacks):
     async def run_app():
         config = {"thread_id": thread_id, "callbacks": [callbacks], "run_name": "tour_agent"}
         
-        # One assistant message container
         message_box = st.chat_message("assistant")
         text_placeholder = message_box.empty()
         full_text = ""
@@ -405,7 +400,6 @@ def sync_app(topic, thread_id, callbacks):
                 text_placeholder.markdown(full_text)
                 await asyncio.sleep(0.01)  # push updates
 
-        # return final accumulated text
         return full_text
 
     try:
@@ -421,25 +415,18 @@ def tourChat():
         st.warning("Please log in to access this feature.")
         return
     
-    # Initialize chat history with a unique key for this section
     session_key = "tour_agent_messages"
     if session_key not in st.session_state:
         st.session_state[session_key] = []
 
-    # Display chat messages from history on app rerun
     for message in st.session_state[session_key]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # React to user input
     if prompt := st.chat_input("What is up?"):
-        # Display user message in chat message container
         st.chat_message("user").markdown(prompt)
-        # Add user message to chat history
         st.session_state[session_key].append({"role": "user", "content": prompt})
 
-        # Get the assistant's response using the sync_app wrapper for async operations
         thread_id = str(uuid.uuid4())
         response = sync_app(prompt, thread_id, langfuse_handler)
-        # Add assistant response to chat history
         st.session_state[session_key].append({"role": "assistant", "content": response})
