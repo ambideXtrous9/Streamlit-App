@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  streamlit-app:
+    build: .
+    container_name: streamlit-app
+    ports:
+      - "8051:8051"
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: streamlit run --server.port=8051 --server.address=0.0.0.0 app.py
+    environment:
+      - PYTHONUNBUFFERED=true
+    restart: unless-stopped
