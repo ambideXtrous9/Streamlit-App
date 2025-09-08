@@ -20,6 +20,15 @@ import time
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 import asyncio
 
+# Prepend your uploaded Node 20 bin folder to PATH
+NODE_BIN = os.path.abspath("nodev20/bin")
+os.environ["PATH"] = f"{NODE_BIN}:{os.environ['PATH']}"
+
+import subprocess
+
+subprocess.run(["node", "-v"], check=True)
+subprocess.run(["npx", "--version"], check=True)
+
 langfuse_handler = CallbackHandler()
 
 class ArticleResponse(TypedDict):
@@ -51,7 +60,7 @@ async def airbnbAgent(state):
     ctx = get_script_run_ctx()
     
     server_params = StdioServerParameters(
-            command= "./nodev20/bin/npx",
+            command= "npx",
             args= [
                 "-y",
                 "@openbnb/mcp-server-airbnb",
