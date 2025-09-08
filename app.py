@@ -12,7 +12,7 @@ from langfuse import Langfuse, get_client
 Langfuse(
     public_key=st.secrets.get("LANGFUSE_PUBLIC_KEY"),
     secret_key=st.secrets.get("LANGFUSE_SECRET_KEY"),
-    host=st.secrets.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+    host="https://us.cloud.langfuse.com"
 )
 langfuse = get_client()
  
