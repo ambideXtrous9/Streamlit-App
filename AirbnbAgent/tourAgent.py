@@ -195,7 +195,7 @@ def get_forecast(location: str, days: int = 3):
         dict: Forecast data if successful, None otherwise.
     """
     print("WeatherForecast tool")
-    API_KEY = os.getenv("WEATHER_API_KEY")  # ⚠️ keep private in real apps
+    API_KEY = st.secrets["WEATHER_API_KEY"]
     
     params = {
         "key": API_KEY,
