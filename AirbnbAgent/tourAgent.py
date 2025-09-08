@@ -51,7 +51,7 @@ async def airbnbAgent(state):
     ctx = get_script_run_ctx()
     
     server_params = StdioServerParameters(
-            command= "nodev20/bin/npx",
+            command= "./nodev20/bin/npx",
             args= [
                 "-y",
                 "@openbnb/mcp-server-airbnb",
