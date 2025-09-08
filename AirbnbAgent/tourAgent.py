@@ -43,7 +43,6 @@ llm = ChatGroq(
 )   
 
 
-
 #llm = ChatOllama(model="qwen3:4b")  # Use a model available via Ollama
 
 
@@ -52,7 +51,7 @@ async def airbnbAgent(state):
     ctx = get_script_run_ctx()
     
     server_params = StdioServerParameters(
-            command= "npx",
+            command= "./nodev20/bin/npx",
             args= [
                 "-y",
                 "@openbnb/mcp-server-airbnb",
