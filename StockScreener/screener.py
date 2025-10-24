@@ -52,7 +52,7 @@ heading = f"## {rocket_icon} AI Financial Research Report"
 
 temperature = 0.1
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-model_name = "qwen/qwen3-32b" #"moonshotai/kimi-k2-instruct-0905" #openai/gpt-oss-20b #"qwen/qwen3-32b"
+model_name = "openai/gpt-oss-20b" #"moonshotai/kimi-k2-instruct-0905" #openai/gpt-oss-20b #"qwen/qwen3-32b"
 
 llm = ChatGroq(
     model_name=model_name,
@@ -136,7 +136,9 @@ stock_agent = create_react_agent(
             👉 Tone must be **sharp, research-broker style**, bold points, written in **paragraph format**, with smooth transitions between news, performance, macro, and outlook.  
             
             ### 💰 MultiBagger Metrics Analysis:
-                - Detailed Analysis of MultiBagger Metrics
+                - Go through MultiBagger Metrics
+                  and give Reasoning and Analysis whether it is a MultiBagger 
+                  Candidate or not
 
             ---
 
@@ -804,17 +806,55 @@ def companyDetails(company_data, ticker):
     # Add custom CSS for better styling
     st.markdown("""
     <style>
+    /* Base styles */
     .stMarkdown h2 {
-        font-size: 22px;
-        margin: 1.25rem 0 0.75rem;
-    }
-    .stMarkdown h3 {
-        font-size: 18px;
+        font-size: 20px;
         margin: 1rem 0 0.5rem;
     }
+    .stMarkdown h3 {
+        font-size: 16px;
+        margin: 0.75rem 0 0.25rem;
+    }
     .stMarkdown p, .stMarkdown li {
-        font-size: 15px;
-        line-height: 1.5;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    
+    /* Compact metrics */
+    .stMetric {
+        padding: 0.5rem 0.75rem !important;
+        margin: 0.25rem 0 !important;
+        border-radius: 0.5rem !important;
+        background: #f8f9fa !important;
+    }
+    .stMetric > div {
+        gap: 0.25rem !important;
+    }
+    .stMetric > div > div:first-child {
+        font-size: 0.8rem !important;
+        color: #666 !important;
+        font-weight: 500 !important;
+    }
+    .stMetric > div > div:last-child {
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Compact tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Compact table styles */
+    .dataframe {
+        font-size: 0.85rem !important;
+    }
+    .dataframe th, .dataframe td {
+        padding: 0.4rem 0.75rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -843,26 +883,29 @@ def companyDetails(company_data, ticker):
         
         # Display company header with optimized font size
         st.markdown(f"""
-        <div style='margin-bottom: 1rem;'>
-            <h1 style='font-size: 26px; font-weight: 600; margin-bottom: 0.25rem;'>{company_data.get('Company Name', '')}</h1>
-            <div style='font-size: 16px; color: #666;'>{ticker}</div>
+        <div style='margin-bottom: 0.5rem;'>
+            <h1 style='font-size: 22px; font-weight: 600; margin: 0 0 0.25rem 0;'>{company_data.get('Company Name', '')}</h1>
+            <div style='font-size: 14px; color: #666; margin-bottom: 0.5rem;'>{ticker} • {stock_info['stock_data'].get('Industry', '')}</div>
         </div>
         """, unsafe_allow_html=True)
         
-        # Main metrics in columns with EPS
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Current Price", stock_info['stock_data']['Current Price'])
-            st.metric("52-Week Range", stock_info['stock_data']['52-Week Range'])
-        with col2:
-            st.metric("Market Cap", stock_info['stock_data']['Market Cap (Cr)'])
-            st.metric("Volume / Avg", f"{stock_info['stock_data']['Volume']} / {stock_info['stock_data']['Avg. Volume']}")
-        with col3:
-            st.metric("P/E (TTM)", stock_info['valuation']['P/E (TTM)'])
-            st.metric("Sector", stock_info['stock_data']['Sector'])
-        with col4:
-            st.metric("EPS (TTM)", eps_ttm)
-            st.metric("EPS Growth (QoQ)", eps_growth if eps_growth != 'N/A' else 'N/A')
+        # Main metrics in a compact grid
+        metrics_grid = st.columns(4)
+        metrics_data = [
+            ("Current Price", stock_info['stock_data'].get('Current Price', 'N/A')),
+            ("52-Week Range", stock_info['stock_data'].get('52-Week Range', 'N/A')),
+            ("Market Cap", stock_info['stock_data'].get('Market Cap (Cr)', 'N/A')),
+            ("Volume / Avg", f"{stock_info['stock_data'].get('Volume', 'N/A')} / {stock_info['stock_data'].get('Avg. Volume', 'N/A')}"),
+            ("P/E (TTM)", stock_info['valuation'].get('P/E (TTM)', 'N/A')),
+            ("Sector", stock_info['stock_data'].get('Sector', 'N/A')),
+            ("EPS (TTM)", eps_ttm if eps_ttm != 'N/A' else 'N/A'),
+            ("EPS Growth (QoQ)", eps_growth if eps_growth != 'N/A' else 'N/A')
+        ]
+        
+        # Display metrics in a 4x2 grid
+        for i, (label, value) in enumerate(metrics_data):
+            with metrics_grid[i % 4]:
+                st.metric(label, value)
         
         # Tabs for different sections with smaller font
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "📈 Valuation", "💰 Financials", "💎 Multibagger"])
