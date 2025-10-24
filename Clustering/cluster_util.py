@@ -6,7 +6,7 @@ from icons import glowingCluster
 def showData():
     fig = PlotData()
     # Display in Streamlit
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch',config={'displayModeBar': False})
 
 
 
@@ -39,7 +39,7 @@ def Cluster():
             
         # Run K-Means with current parameters
         fig = kmeans(st.session_state.n_clusters)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch',config={'displayModeBar': False})
         st.write('''💡 Why don't you try DBSCAN..!!''')
         
     elif selected_option == "DBSCAN":
@@ -53,7 +53,7 @@ def Cluster():
             
         # Run DBSCAN with current parameters
         fig = DBScan(st.session_state.eps)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch',config={'displayModeBar': False})
         
         # Display additional information based on epsilon value
         if eps <= 5: 
@@ -65,7 +65,7 @@ def Cluster():
             show_k_graph = st.radio('💡 Would you like to see the K-Distance Graph?', ('Yes', 'No'), index=1)
             if show_k_graph == 'Yes':
                 kfig = KDistGraph()
-                st.plotly_chart(kfig, use_container_width=True)
+                st.plotly_chart(kfig, width='stretch',config={'displayModeBar': False})
                 st.write('''🧠 Now change the eps and see the result!''')
         
         elif eps > 5 and eps < 30:
@@ -73,7 +73,7 @@ def Cluster():
             show_k_graph = st.radio('💡 Would you like to see the K-Distance Graph?', ('Yes', 'No'), index=1)
             if show_k_graph == 'Yes':
                 kfig = KDistGraph()
-                st.plotly_chart(kfig, use_container_width=True)
+                st.plotly_chart(kfig, width='stretch',config={'displayModeBar': False})
 
             st.write('''💡 Change eps till 30 and see the result!''')
         

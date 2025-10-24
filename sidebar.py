@@ -22,7 +22,7 @@ def SideBar():
 
     with st.sidebar:
         # Show dynamic image
-        st.image(st.session_state["sidebar_image"], use_container_width=True)
+        st.image(st.session_state["sidebar_image"], width='stretch')
 
         st.markdown(
             """

@@ -52,7 +52,7 @@ heading = f"## {rocket_icon} AI Financial Research Report"
 
 temperature = 0.1
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-model_name = "qwen/qwen3-32b" #"deepseek-r1-distill-llama-70b" #"moonshotai/kimi-k2-instruct" #"qwen/qwen3-32b"
+model_name = "qwen/qwen3-32b" #"moonshotai/kimi-k2-instruct-0905" #openai/gpt-oss-20b #"qwen/qwen3-32b"
 
 llm = ChatGroq(
     model_name=model_name,
@@ -145,7 +145,6 @@ stock_agent = create_react_agent(
             - **Summary:** {Summary of above all analysis}
             """
         )
-
 
     )
 
@@ -527,7 +526,7 @@ def plotChart(symbol):
                         low=df['Low'],
                         close=df['Close'])])
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch',config={'displayModeBar': False})
     
 
 
@@ -642,7 +641,7 @@ def plotShareholding(shareholdnres):
         template='plotly_white'
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch',config={'displayModeBar': False})
 
 
 
@@ -659,10 +658,15 @@ def reportGenerator(option):
     plotShareholding(shareholdnres)
     news = CompanyNews(fundainfo['Company Name'])
 
+    top_news = news[:8] if len(news) >= 8 else news
+
+
+
+
     if st.button("AI Research Report"):
         with st.spinner("Generating Report..."):
             st.markdown(heading, unsafe_allow_html=True)
-            report = stock_node(fundainfo,shareholdnres,technical_indicators,news)
+            report = stock_node(fundainfo,shareholdnres,technical_indicators,top_news)
 
         # Extract <think> section
         think_match = re.search(r"<think>(.*?)</think>", report, re.DOTALL)
