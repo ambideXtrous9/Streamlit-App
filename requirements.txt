@@ -24,6 +24,7 @@ ta
 mplchart
 yfinance
 mplfinance
+langchain
 langchain-community
 langchain-huggingface
 transformers
