@@ -259,8 +259,13 @@ def BreakoutVolume(niftylist):
 
         # Calculate SMAs and EMA in one go
         dt['50_SMA'] = sma_indicator(dt['Close'], window=50)
+        dt['30_SMA'] = sma_indicator(dt['Close'], window=30)
+        dt['100_SMA'] = sma_indicator(dt['Close'], window=100)
+        dt['200_SMA'] = sma_indicator(dt['Close'], window=200)
         dt['20_SMA'] = sma_indicator(dt['Close'], window=20)
         dt['Volume_EMA20'] = dt['Volume'].ewm(span=20, adjust=False).mean()
+        # Calculate 1 week ago volume (5 trading days)
+        dt['Volume_1w_ago'] = dt['Volume'].shift(5)
 
         # Sort once
         dt.sort_values(by='Date', ascending=False, inplace=True)
@@ -273,9 +278,13 @@ def BreakoutVolume(niftylist):
         four_days_ago_values = dt.iloc[4]
 
         # Filter by volume and price first (most likely to fail)
-        if daily_values['Volume'] < daily_values['Volume_EMA20'] or \
-           daily_values['Close'] < daily_values['50_SMA'] or \
-           daily_values['Close'] < daily_values['20_SMA']:
+        if (daily_values['Volume'] < daily_values['Volume_EMA20'] or 
+            daily_values['Close'] < daily_values['50_SMA'] or 
+            daily_values['Close'] < daily_values['20_SMA'] or
+            daily_values['Close'] < daily_values['30_SMA'] or
+            daily_values['Close'] < daily_values['100_SMA'] or
+            daily_values['Close'] < daily_values['200_SMA'] or
+            daily_values['Volume'] <= daily_values.get('Volume_1w_ago', 0)):
             continue
 
         # Get week and month data
@@ -422,7 +431,7 @@ def extract_key_insights(soup):
     pe_value = soup.find('span', class_='name', string=lambda t: t and "Stock P/E" in t).find_next('span', class_='number').string
     roe = soup.find('span', class_='name', string=lambda t: t and "ROE" in t).find_next('span', class_='number').string
     roce = soup.find('span', class_='name', string=lambda t: t and "ROCE" in t).find_next('span', class_='number').string
-
+    
     quarter_values, yearly_values = results(soup)
     Promoters, DII, FII, Public = shareholding(soup)
 
@@ -433,7 +442,7 @@ def extract_key_insights(soup):
         "About": about_section,
         "PE" : pe_value,
         "ROE" : roe,
-        "ROCE" : roce,}
+        "ROCE" : roce}
 
     shareholdnres = {"Quarter" : quarter_values,
         "Yearly" : yearly_values,
