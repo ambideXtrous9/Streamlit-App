@@ -1,12 +1,12 @@
 # langgraph_multiagent.py
-from langchain.agents import Tool
+from langchain_core.tools import Tool
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Optional, Dict
 from langgraph.prebuilt import create_react_agent
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.messages import AIMessage  # import AIMessage
 from langchain_community.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from transformers import AutoTokenizer, AutoModel
 from sentence_transformers import CrossEncoder
 from langchain_core.tools import tool
