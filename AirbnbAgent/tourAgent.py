@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -79,10 +79,10 @@ async def airbnbAgent(state):
                 tools = await load_mcp_tools(session)
                 
                 
-                agent = create_react_agent(
+                agent = create_agent(
                     model=llm,
                     tools=tools,
-                    prompt = (
+                    system_prompt = (
                         """
                         **ADVANCED HOTEL SEARCH FORMAT**
 
@@ -229,10 +229,10 @@ def get_forecast(location: str, days: int = 3):
 
 async def weatherAgent(state):
     print("Weather Agent..")
-    weather_agent = create_react_agent(
+    weather_agent = create_agent(
             model=llm,
             tools=[get_forecast],
-            prompt = (
+            system_prompt = (
                 """
                 You are a Weather Assistant.
 

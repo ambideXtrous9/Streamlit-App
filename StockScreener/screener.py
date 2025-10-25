@@ -77,13 +77,12 @@ llm = ChatGroq(
 google_news = GNews(language='en', period='30d',max_results=10)
 
 from StockScreener.mlpchart.mlpchart import chart
+from langchain.agents import create_agent
 
-from langgraph.prebuilt import create_react_agent
-
-stock_agent = create_react_agent(
+stock_agent = create_agent(
         model=llm,
         tools=[],
-        prompt = (
+        system_prompt = (
             """
             **Role:**  
             You are a **Senior Equity Research Analyst & Trader (20+ yrs exp)**.  

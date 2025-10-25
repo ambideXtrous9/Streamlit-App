@@ -2,7 +2,6 @@ from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from pydantic import ValidationError
 from pydantic import BaseModel, Field
 from typing import Literal
-from langgraph.prebuilt import create_react_agent
 from langchain_groq import ChatGroq
 import streamlit as st
 from dotenv import load_dotenv
@@ -12,7 +11,7 @@ load_dotenv()
 
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
-model_name = "gemma2-9b-it"
+model_name = "openai/gpt-oss-20b"
 temperature = 0
 
 
@@ -66,7 +65,6 @@ def AgentClassifyNode(topic):
     while attempt < max_retries:
         
         attempt += 1
-        
         
         # Run agent and capture full assistant output (stream or no-stream)
         response = llm.invoke([sys_prompt, user_msg])
