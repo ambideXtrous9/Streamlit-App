@@ -9,20 +9,21 @@
 
 ## 🚀 About This Project
 
-Welcome to the Streamlit Applications Hub! This repository is a collection of innovative Streamlit applications that showcase various AI and data science capabilities. Each application is designed to be interactive, user-friendly, and demonstrate cutting-edge technologies in a practical way.
+A curated hub of interactive Streamlit applications showcasing practical AI and data science. Each app is designed for clarity, fast iteration, and hands-on exploration.
 
 ## 📋 Key Features
 
-- 📊 **Stock Screener**: Advanced stock market analysis and screening tool
-- 📖 **HarryAgent**: Intelligent news analysis using LLMs
-- 🎯 **Logo Detection**: YOLO-based logo recognition system
-- 📈 **Data Clustering**: Interactive clustering visualization
-- 🧠 **Image Classifier**: Image classification using Various Models
+- 📊 **Stock Screener**: AI-assisted equity research with indicators, charts, and reports
+- 🗺️ **Airbnb Tour Agent (MCP + Weather)**: Trip plans from Airbnb listings + weather via MCP
+- 📖 **HarryAgent**: LLM multi-agent research and writing with retrieval + critique loop
+- 🎯 **Logo Detection**: YOLO-based logo recognition
+- 📈 **Clustering**: Interactive clustering demos (KMeans/DBSCAN)
+- 🧠 **Image Classifier**: Multi-backbone image classification
 
 ## 📁 Project Structure
 
 ```
-Streamlit-App/
+Streamlit-AI-Portfolio/
 ├── StockScreener/        # Stock market analysis tools
 ├── HarryAgent/           # Harry Potter X Mythology
 ├── LogoYolo/            # Logo detection system
@@ -49,38 +50,54 @@ streamlit run app.py
 
 ## 🎮 Usage
 
-1. Launch the application using the command above
-2. Access the app at `http://localhost:8501`
-3. Navigate through different applications using the sidebar
-4. Each application has its own documentation and usage instructions
+- Launch: `streamlit run app.py` → open `http://localhost:8501`
+- Navigate via the sidebar between applications
+- Open a specific page directly:
+
+```bash
+streamlit run app.py -- "?page=stockscreener"
+# pages: home | stockscreener | newsqa | tourAgent | yolologo | image_classifer | clusterplay | login
+```
 
 ## 📚 Project Details
 
-### AI Stock Screener
-- Real-time stock market data analysis
-- Technical indicators and screening
-- Portfolio optimization tools
-- Interactive charts and visualizations
-- AI Stock Research Agent
+### 📊 AI Stock Screener
+- Real-time price data via yfinance
+- Fundamentals/shareholding scraped from screener.in
+- News context via GNews
+- Technical indicators: EMA, SMA, RSI, MACD; breakout heuristics
+- Interactive tables and charts (mlpchart)
+- AI stock research report powered by ChatGroq
 
-### Agent : Harry Potter X Mythology
-- Harry Potter Universe X Indian Mythology 
-- Agentic workflow using Langgraph
+### 🗺️ Airbnb Tour Agent (MCP + Weather)
+- LangGraph composition: parallel weather agent + Airbnb MCP agent → tour synthesis
+- MCP stdio to `@openbnb/mcp-server-airbnb` via `npx`
+- Weather tool formats a concise forecast report
+- Streams tour synthesis updates to the UI
+- Uses system Node 20 or bundled `nodev20/` for reliable MCP execution
 
-### Logo Detection
-- YOLO-based object detection
-- Custom logo recognition
-- Real-time processing
-- Image and video support
+### 📖 HarryAgent (LLM multi-agent, RAG + critique)
+- Thematic blend: Harry Potter × Indian Mythology
+- LangGraph workflow: classify → researcher → mythologist → writer → critic (with loop)
+- Retrieval via FAISS index in `HPVdb/` with CrossEncoder reranking
+- Checkpointing in SQLite; observability via Langfuse
 
-### Clustering
-- Various clustering algorithms
-- Interactive visualizations
-- Data preprocessing tools
-- Performance metrics
+### 🧠 Image Classifier
+- Multiple backbones: Xception, InceptionV3, MobileNetV2, EfficientNet
+- Loads checkpoints (`*.ckpt`) and runs per-model inference
+- Displays per-model metrics for comparison
 
-### Image Classifier
-- Image classification using Various Models
+### 🎯 Logo Detection
+- Ultralyics YOLO-based logo recognition with bundled weights (`LogoYolobest.pt`)
+- Integrated into the app via shared utilities
+- Real-time inference on uploaded images
+
+### 📈 Clustering
+- KMeans and DBSCAN demos with synthetic data
+- Interactive visualizations with seaborn/matplotlib
+- K-distance graph to explore cluster structure
+
+
 
 
 ## 🤝 Contributing
