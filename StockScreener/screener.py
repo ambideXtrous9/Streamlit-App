@@ -77,13 +77,12 @@ llm = ChatGroq(
 google_news = GNews(language='en', period='30d',max_results=10)
 
 from StockScreener.mlpchart.mlpchart import chart
+from langchain.agents import create_agent
 
-from langgraph.prebuilt import create_react_agent
-
-stock_agent = create_react_agent(
+stock_agent = create_agent(
         model=llm,
         tools=[],
-        prompt = (
+        system_prompt = (
             """
             **Role:**  
             You are a **Senior Equity Research Analyst & Trader (20+ yrs exp)**.  
@@ -795,16 +794,13 @@ def get_financial_metrics(ticker, stock_info=None):
             'target': ('min', 25),
             'better': 'higher',
             'importance': '5-year compound annual growth rate of EPS',
-            'ideal': '25-30%+'
+            'ideal': '≥ 25%'
         }
     }
 
-
-def companyDetails(company_data, ticker):
-    # Display comprehensive company information and analysis
-    
-    # Add custom CSS for better styling
-    st.markdown("""
+def get_company_styles():
+    """Return the CSS styles for the company details page."""
+    return """
     <style>
     /* Base styles */
     .stMarkdown h2 {
@@ -856,537 +852,481 @@ def companyDetails(company_data, ticker):
     .dataframe th, .dataframe td {
         padding: 0.4rem 0.75rem !important;
     }
-    </style>
-    """, unsafe_allow_html=True)
     
-    try:
-        # Create Ticker object first
-        tick = yf.Ticker(ticker)
-        
-        # Get stock info
-        stock_info = extract_stock_info(tick.info)
-        
-        # Now get all metrics using the Ticker object
-        metrics = get_financial_metrics(tick, stock_info)
-        
-        # Add EPS metrics to stock info
-        eps_ttm = tick.info.get('trailingEps', 'N/A')
-        eps_forward = tick.info.get('forwardEps', 'N/A')
-        eps_growth = tick.info.get('earningsQuarterlyGrowth', 'N/A')
-        
-        if eps_ttm != 'N/A' and eps_ttm is not None:
-            eps_ttm = f"₹{float(eps_ttm):.2f}"
-        if eps_forward != 'N/A' and eps_forward is not None:
-            eps_forward = f"₹{float(eps_forward):.2f}"
-        if eps_growth != 'N/A' and isinstance(eps_growth, (int, float)):
-            eps_growth = f"{eps_growth * 100:.1f}%"
-        
-        # Display company header with optimized font size
-        st.markdown(f"""
-        <div style='margin-bottom: 0.5rem;'>
-            <h1 style='font-size: 22px; font-weight: 600; margin: 0 0 0.25rem 0;'>{company_data.get('Company Name', '')}</h1>
-            <div style='font-size: 14px; color: #666; margin-bottom: 0.5rem;'>{ticker} • {stock_info['stock_data'].get('Industry', '')}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Main metrics in a compact grid
-        metrics_grid = st.columns(4)
-        metrics_data = [
-            ("Current Price", stock_info['stock_data'].get('Current Price', 'N/A')),
-            ("52-Week Range", stock_info['stock_data'].get('52-Week Range', 'N/A')),
+    /* Valuation and Financial Tables */
+    .valuation-table, .financial-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        font-size: 14px;
+    }
+    .valuation-table th, .financial-table th {
+        background-color: #2c3e50;
+        color: white;
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: 500;
+    }
+    .valuation-table td, .financial-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: middle;
+    }
+    .valuation-table tr:nth-child(even), .financial-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    .valuation-table tr:hover, .financial-table tr:hover {
+        background-color: #f1f3f5;
+    }
+    .value-col {
+        text-align: right;
+        font-weight: 500;
+    }
+    .spacer-col {
+        width: 30px;
+        background: white;
+    }
+    .metric-col {
+        color: #2c3e50;
+        font-weight: 500;
+    }
+    
+    /* Multibagger Table */
+    #multibagger-table {
+        width: 100%;
+        min-width: 800px;
+        border-collapse: collapse;
+        margin: 0;
+        font-size: 14px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    #multibagger-table th {
+        background-color: #2c3e50;
+        color: white;
+        font-weight: 500;
+        padding: 12px 15px;
+        text-align: left;
+    }
+    #multibagger-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: middle;
+    }
+    #multibagger-table tr:last-child td {
+        border-bottom: none;
+    }
+    #multibagger-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    #multibagger-table th:first-child, 
+    #multibagger-table td:first-child {
+        padding-left: 20px;
+    }
+    #multibagger-table th:last-child, 
+    #multibagger-table td:last-child {
+        padding-right: 20px;
+    }
+    </style>
+    """
+
+def get_eps_data(tick):
+    """Extract and format EPS-related data from the ticker."""
+    eps_ttm = tick.info.get('trailingEps', 'N/A')
+    eps_forward = tick.info.get('forwardEps', 'N/A')
+    eps_growth = tick.info.get('earningsQuarterlyGrowth', 'N/A')
+    
+    if eps_ttm != 'N/A' and eps_ttm is not None:
+        eps_ttm = f"₹{float(eps_ttm):.2f}"
+    if eps_forward != 'N/A' and eps_forward is not None:
+        eps_forward = f"₹{float(eps_forward):.2f}"
+    if eps_growth != 'N/A' and isinstance(eps_growth, (int, float)):
+        eps_growth = f"{eps_growth * 100:.1f}%"
+    
+    return eps_ttm, eps_forward, eps_growth
+
+def render_company_header(company_data, ticker, stock_info):
+    """Render the company header with name, ticker, and industry."""
+    st.markdown(f"""
+    <div style='margin-bottom: 0.5rem;'>
+        <h1 style='font-size: 22px; font-weight: 600; margin: 0 0 0.25rem 0;'>{company_data.get('Company Name', '')}</h1>
+        <div style='font-size: 14px; color: #666; margin-bottom: 0.5rem;'>{ticker} • {stock_info['stock_data'].get('Industry', '')}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def render_metrics_grid(stock_info, eps_ttm, eps_growth):
+    """Render the metrics grid with key company metrics."""
+    metrics_grid = st.columns(4)
+    metrics_data = [
+        ("Current Price", stock_info['stock_data'].get('Current Price', 'N/A')),
+        ("52-Week Range", stock_info['stock_data'].get('52-Week Range', 'N/A')),
+        ("Market Cap", stock_info['stock_data'].get('Market Cap (Cr)', 'N/A')),
+        ("Volume / Avg", f"{stock_info['stock_data'].get('Volume', 'N/A')} / {stock_info['stock_data'].get('Avg. Volume', 'N/A')}"),
+        ("P/E (TTM)", stock_info['valuation'].get('P/E (TTM)', 'N/A')),
+        ("Sector", stock_info['stock_data'].get('Sector', 'N/A')),
+        ("EPS (TTM)", eps_ttm if eps_ttm != 'N/A' else 'N/A'),
+        ("EPS Growth (QoQ)", eps_growth if eps_growth != 'N/A' else 'N/A')
+    ]
+    
+    for i, (label, value) in enumerate(metrics_data):
+        with metrics_grid[i % 4]:
+            st.metric(label, value)
+
+def render_overview_tab(tick, stock_info):
+    """Render the content of the Overview tab."""
+    st.subheader("Company Information")
+    st.markdown(f"**Industry:** {stock_info['stock_data']['Industry']}")
+    
+    if 'longBusinessSummary' in tick.info:
+        st.markdown("### About")
+        st.markdown(f"*{tick.info['longBusinessSummary']}*")
+    
+    if 'companyOfficers' in tick.info and tick.info['companyOfficers']:
+        st.markdown("### Key Executives")
+        for officer in tick.info['companyOfficers'][:5]:
+            st.markdown(f"- **{officer.get('name', 'N/A')}**: {officer.get('title', 'N/A')}")
+
+def render_valuation_tab(stock_info, eps_ttm, eps_forward, eps_growth):
+    """Render the content of the Valuation tab."""
+    st.subheader("Valuation Metrics")
+    
+    with st.container():
+        valuation_metrics = [
             ("Market Cap", stock_info['stock_data'].get('Market Cap (Cr)', 'N/A')),
-            ("Volume / Avg", f"{stock_info['stock_data'].get('Volume', 'N/A')} / {stock_info['stock_data'].get('Avg. Volume', 'N/A')}"),
             ("P/E (TTM)", stock_info['valuation'].get('P/E (TTM)', 'N/A')),
-            ("Sector", stock_info['stock_data'].get('Sector', 'N/A')),
+            ("Forward P/E", stock_info['valuation'].get('Forward P/E', 'N/A')),
+            ("PEG Ratio", stock_info['valuation'].get('PEG Ratio', 'N/A')),
+            ("P/S (TTM)", stock_info['valuation'].get('P/S (TTM)', 'N/A')),
+            ("P/B", stock_info['valuation'].get('P/B', 'N/A')),
+            ("P/FCF", stock_info['valuation'].get('P/FCF', 'N/A')),
+            ("EV/EBITDA", stock_info['valuation'].get('EV/EBITDA', 'N/A')),
             ("EPS (TTM)", eps_ttm if eps_ttm != 'N/A' else 'N/A'),
-            ("EPS Growth (QoQ)", eps_growth if eps_growth != 'N/A' else 'N/A')
+            ("Forward EPS", eps_forward if eps_forward != 'N/A' else 'N/A'),
+            ("EPS Growth (QoQ)", eps_growth if eps_growth != 'N/A' else 'N/A'),
+            ("Dividend Yield", stock_info['financials'].get('Dividend Yield', 'N/A'))
         ]
         
-        # Display metrics in a 4x2 grid
-        for i, (label, value) in enumerate(metrics_data):
-            with metrics_grid[i % 4]:
-                st.metric(label, value)
+        mid_point = (len(valuation_metrics) + 1) // 2
+        left_metrics = valuation_metrics[:mid_point]
+        right_metrics = valuation_metrics[mid_point:]
         
-        # Tabs for different sections with smaller font
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "📈 Valuation", "💰 Financials", "💎 Multibagger"])
+        df = pd.DataFrame({
+            'Metric': [m[0] for m in left_metrics],
+            'Value': [m[1] for m in left_metrics],
+            '  ': [''] * len(left_metrics),
+            'Metric ': [m[0] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics)),
+            'Value ': [m[1] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics))
+        })
         
-        with tab1:  # Overview
-            st.subheader("Company Information")
-            st.markdown(f"**Industry:** {stock_info['stock_data']['Industry']}")
-            
-            # Display company description if available
-            if 'longBusinessSummary' in tick.info:
-                st.markdown("### About")
-                st.markdown(f"*{tick.info['longBusinessSummary']}*")
-            
-            # Display key executives
-            if 'companyOfficers' in tick.info and tick.info['companyOfficers']:
-                st.markdown("### Key Executives")
-                for officer in tick.info['companyOfficers'][:5]:  # Show top 5 executives
-                    st.markdown(f"- **{officer.get('name', 'N/A')}**: {officer.get('title', 'N/A')}")
+        html = df.to_html(
+            index=False,
+            classes='valuation-table',
+            escape=False,
+            header=True,
+            justify='left'
+        )
         
-        with tab2:  # Valuation
-            st.subheader("Valuation Metrics")
-            
-            # Create a container for the valuation metrics
-            with st.container():
-                # Prepare valuation metrics data
-                valuation_metrics = [
-                    ("Market Cap", stock_info['stock_data'].get('Market Cap (Cr)', 'N/A')),
-                    ("P/E (TTM)", stock_info['valuation'].get('P/E (TTM)', 'N/A')),
-                    ("Forward P/E", stock_info['valuation'].get('Forward P/E', 'N/A')),
-                    ("PEG Ratio", stock_info['valuation'].get('PEG Ratio', 'N/A')),
-                    ("P/S (TTM)", stock_info['valuation'].get('P/S (TTM)', 'N/A')),
-                    ("P/B", stock_info['valuation'].get('P/B', 'N/A')),
-                    ("P/FCF", stock_info['valuation'].get('P/FCF', 'N/A')),
-                    ("EV/EBITDA", stock_info['valuation'].get('EV/EBITDA', 'N/A')),
-                    ("EPS (TTM)", eps_ttm if eps_ttm != 'N/A' else 'N/A'),
-                    ("Forward EPS", eps_forward if eps_forward != 'N/A' else 'N/A'),
-                    ("EPS Growth (QoQ)", eps_growth if eps_growth != 'N/A' else 'N/A'),
-                    ("Dividend Yield", stock_info['financials'].get('Dividend Yield', 'N/A'))
-                ]
-                
-                # Create a DataFrame for the table
-                import pandas as pd
-                
-                # Split into two columns for better readability
-                mid_point = (len(valuation_metrics) + 1) // 2
-                left_metrics = valuation_metrics[:mid_point]
-                right_metrics = valuation_metrics[mid_point:]
-                
-                # Create a DataFrame with two columns
-                df = pd.DataFrame({
-                    'Metric': [m[0] for m in left_metrics],
-                    'Value': [m[1] for m in left_metrics],
-                    '  ': [''] * len(left_metrics),  # Empty column for spacing
-                    'Metric ': [m[0] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics)),
-                    'Value ': [m[1] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics))
-                })
-                
-                # Display the table with custom styling
-                st.markdown("""
-                <style>
-                .valuation-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 15px 0;
-                    font-size: 14px;
-                }
-                .valuation-table th {
-                    background-color: #2c3e50;
-                    color: white;
-                    text-align: left;
-                    padding: 10px 12px;
-                    font-weight: 500;
-                }
-                .valuation-table td {
-                    padding: 10px 12px;
-                    border-bottom: 1px solid #e0e0e0;
-                    vertical-align: middle;
-                }
-                .valuation-table tr:nth-child(even) {
-                    background-color: #f8f9fa;
-                }
-                .valuation-table tr:hover {
-                    background-color: #f1f3f5;
-                }
-                .valuation-table .value-col {
-                    text-align: right;
-                    font-weight: 500;
-                    font-family: 'Courier New', monospace;
-                }
-                .valuation-table .spacer-col {
-                    width: 30px;
-                    background: white;
-                }
-                .valuation-table .metric-col {
-                    color: #2c3e50;
-                    font-weight: 500;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                
-                # Convert DataFrame to HTML with custom classes
-                html = df.to_html(
-                    index=False,
-                    classes='valuation-table',
-                    escape=False,
-                    header=True,
-                    justify='left'
-                )
-                
-                # Add custom classes to table elements
-                html = html.replace('<td>', '<td class="value-col">')
-                html = html.replace('<td> </td>', '<td class="spacer-col"></td>')
-                html = html.replace('<th>Metric</th>', '<th class="metric-col">Metric</th>')
-                html = html.replace('<th>Metric </th>', '<th class="metric-col">Metric</th>')
-                
-                # Display the table
-                st.markdown(html, unsafe_allow_html=True)
-                
-                # Add a note about the metrics
-                st.markdown("""
-                <div style='margin-top: 10px; font-size: 13px; color: #666;'>
-                    <strong>Note:</strong> All valuation metrics are based on the most recent available data.
-                    P/E and other ratios are calculated using TTM (Trailing Twelve Months) figures unless specified.
-                </div>
-                """, unsafe_allow_html=True)
+        html = html.replace('<td>', '<td class="value-col">')
+        html = html.replace('<td> </td>', '<td class="spacer-col"></td>')
+        html = html.replace('<th>Metric</th>', '<th class="metric-col">Metric</th>')
+        html = html.replace('<th>Metric </th>', '<th class="metric-col">Metric</th>')
         
-        with tab3:  # Financials
-            st.subheader("Financial Health")
-            
-            # Create a container for the financial metrics table
-            with st.container():
-                # Prepare financial metrics data
-                financial_metrics = [
-                    ("Current Ratio", stock_info['financials'].get('Current Ratio', 'N/A')),
-                    ("Quick Ratio", stock_info['financials'].get('Quick Ratio', 'N/A')),
-                    ("Debt/Equity", stock_info['financials'].get('Debt/Equity', 'N/A')),
-                    ("Interest Coverage", stock_info['financials'].get('Interest Coverage', 'N/A')),
-                    ("ROE", stock_info['financials'].get('ROE', 'N/A')),
-                    ("ROA", stock_info['financials'].get('ROA', 'N/A')),
-                    ("ROIC", stock_info['financials'].get('ROIC', 'N/A')),
-                    ("Operating Margin", stock_info['growth'].get('Operating Margin', 'N/A')),
-                    ("Net Margin", stock_info['growth'].get('Net Margin', 'N/A')),
-                    ("EBITDA Margin", stock_info['growth'].get('EBITDA Margin', 'N/A')),
-                    ("Revenue Growth (YoY)", stock_info['growth'].get('Revenue Growth (YoY)', 'N/A')),
-                    ("Earnings Growth (YoY)", stock_info['growth'].get('Earnings Growth (YoY)', 'N/A')),
-                    ("FCF Growth (YoY)", stock_info['growth'].get('FCF Growth (YoY)', 'N/A')),
-                    ("Dividend Payout Ratio", stock_info['financials'].get('Payout Ratio', 'N/A')),
-                    ("Dividend Yield", stock_info['financials'].get('Dividend Yield', 'N/A'))
-                ]
-                
-                # Create a DataFrame for the table
-                import pandas as pd
-                
-                # Split into two columns for better readability
-                mid_point = (len(financial_metrics) + 1) // 2
-                left_metrics = financial_metrics[:mid_point]
-                right_metrics = financial_metrics[mid_point:]
-                
-                # Create a DataFrame with two columns
-                df = pd.DataFrame({
-                    'Metric': [m[0] for m in left_metrics],
-                    'Value': [m[1] for m in left_metrics],
-                    '  ': [''] * len(left_metrics),  # Empty column for spacing
-                    'Metric ': [m[0] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics)),
-                    'Value ': [m[1] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics))
-                })
-                
-                # Display the table with custom styling
-                st.markdown("""
-                <style>
-                .financial-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 15px 0;
-                    font-size: 14px;
-                }
-                .financial-table th {
-                    background-color: #2c3e50;
-                    color: white;
-                    text-align: left;
-                    padding: 10px 12px;
-                    font-weight: 500;
-                }
-                .financial-table td {
-                    padding: 10px 12px;
-                    border-bottom: 1px solid #e0e0e0;
-                    vertical-align: middle;
-                }
-                .financial-table tr:nth-child(even) {
-                    background-color: #f8f9fa;
-                }
-                .financial-table tr:hover {
-                    background-color: #f1f3f5;
-                }
-                .financial-table .value-col {
-                    text-align: right;
-                    font-weight: 500;
-                }
-                .financial-table .spacer-col {
-                    width: 30px;
-                    background: white;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                
-                # Convert DataFrame to HTML with custom classes
-                html = df.to_html(
-                    index=False,
-                    classes='financial-table',
-                    escape=False,
-                    header=True,
-                    justify='left'
-                )
-                
-                # Add custom classes to table elements
-                html = html.replace('<td>', '<td class="value-col">')
-                html = html.replace('<td> </td>', '<td class="spacer-col"></td>')
-                
-                # Display the table
-                st.markdown(html, unsafe_allow_html=True)
+        st.markdown(html, unsafe_allow_html=True)
         
-        with tab4:  # Multibagger Analysis
-            st.subheader("Multibagger Potential Analysis")
-            st.markdown("*Comprehensive evaluation of key financial metrics*")
-            
-            # Helper function to get metric style and verdict
-            def get_metric_analysis(metric_name, current_value, target_type, target_value, is_higher_better=True):
-                if current_value == 'N/A' or current_value is None:
-                    return 'gray', '❓ Unknown', "Data not available"
-                
-                try:
-                    # Clean the value (remove currency symbols, percentage, etc.)
-                    clean_val = float(str(current_value).replace('₹', '').replace('%', '').split(' ')[0].replace(',', ''))
-                    
-                    # Special handling for specific metrics
-                    if 'Debt/Equity' in metric_name:
-                        # Lower is better for Debt/Equity
-                        is_met = clean_val <= target_value
-                        target_text = f"<= {target_value}"
-                        color = '#2ecc71' if is_met else '#e74c3c'
-                        verdict = '✅ Good' if is_met else '⚠️ High'
-                    elif 'P/E' in metric_name or 'PEG' in metric_name:
-                        # Lower is better for P/E and PEG ratios
-                        is_met = clean_val <= target_value
-                        target_text = f"<= {target_value}"
-                        color = '#2ecc71' if is_met else '#e74c3c'
-                        verdict = '✅ Good' if is_met else '⚠️ High'
-                    else:
-                        # Default handling for other metrics
-                        if target_type == 'min':
-                            is_met = clean_val >= target_value if is_higher_better else clean_val <= target_value
-                            target_text = f">= {target_value}%" if is_higher_better else f"<= {target_value}"
-                        elif target_type == 'max':
-                            is_met = clean_val <= target_value if is_higher_better else clean_val >= target_value
-                            target_text = f"<= {target_value}" if is_higher_better else f">= {target_value}%"
-                        
-                        # Set color and verdict
-                        if is_met:
-                            color = '#2ecc71'  # Green
-                            verdict = '✅ Strong' if is_higher_better else '✅ Good'
-                        else:
-                            color = '#e74c3c'  # Red
-                            verdict = '⚠️ Needs Improvement' if is_higher_better else '⚠️ High'
-                    
-                    return color, verdict, target_text
-                
-                except (ValueError, IndexError) as e:
-                    print(f"Error processing {metric_name}: {e}")
-                    return 'gray', '❓ Unknown', "Invalid data"
-            
-            # Calculate EPS CAGR if we have historical data
-            eps_cagr = 'N/A'
-            try:
-                hist = tick.history(period="5y")
-                if not hist.empty and 'Close' in hist.columns:
-                    # Get EPS data if available
-                    if 'trailingEps' in tick.info and tick.info['trailingEps'] is not None:
-                        current_eps = tick.info['trailingEps']
-                        # Get EPS from 5 years ago (simplified - would be better with actual historical EPS)
-                        oldest_eps = current_eps / (1 + (tick.info.get('earningsGrowth', 0) or 0)) ** 4
-                        if oldest_eps > 0:
-                            eps_cagr_calc = ((current_eps / oldest_eps) ** (1/5) - 1) * 100
-                            eps_cagr = f"{eps_cagr_calc:.1f}%"
-            except Exception as e:
-                print(f"Error calculating EPS CAGR: {e}")
-            
-            # Get all required metrics using the new function
-            metrics = get_financial_metrics(tick, stock_info)
-            
-            # Display metrics in a clean, well-formatted table
-            st.markdown("### Key Financial Metrics")
-            
-            # Create a DataFrame for the table with proper formatting
-            table_data = []
-            for metric, data in metrics.items():
-                is_higher_better = data['better'] == 'higher'
-                color, verdict, _ = get_metric_analysis(
-                    metric, data['value'], data['target'][0], data['target'][1], is_higher_better
-                )
-                
-                # Clean and format the value
-                clean_value = str(data['value']).replace('₹', '').replace('%', '').strip()
-                try:
-                    # Format numbers with 2 decimal places if they're numeric
-                    float_val = float(clean_value.split(' ')[0])
-                    formatted_value = f"{float_val:,.2f}"
-                    if '%' in str(data['value']):
-                        formatted_value += '%'
-                    if '₹' in str(data['value']):
-                        formatted_value = '₹' + formatted_value
-                    colored_value = f"<span style='color: {color}; font-weight: 600;'>{formatted_value}</span>"
-                except (ValueError, IndexError):
-                    colored_value = f"<span style='color: {color}; font-weight: 600;'>{data['value']}</span>"
-                
-                colored_verdict = f"<span style='color: {color};'>{verdict}</span>"
-                
-                table_data.append({
-                    'Parameter': metric,
-                    'Your Value': colored_value,
-                    'Target': data.get('ideal', ''),
-                    'Verdict': colored_verdict,
-                    'Why It Matters': data['importance']
-                })
-            
-            # Convert to DataFrame and display with better formatting
-            import pandas as pd
-            df_table = pd.DataFrame(table_data)
-            
-            # Custom HTML for the table with better styling
-            st.markdown(
-                "<div style='margin: 15px 0; overflow-x: auto;'>" +
-                df_table.to_html(escape=False, index=False, 
-                               classes='dataframe',
-                               table_id='multibagger-table') +
-                "</div>" +
-                """
-                <style>
-                #multibagger-table {
-                    width: 100%;
-                    min-width: 800px;
-                    border-collapse: collapse;
-                    margin: 0;
-                    font-size: 14px;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                    border-radius: 8px;
-                    overflow: hidden;
-                }
-                #multibagger-table th {
-                    background-color: #2c3e50;
-                    color: white;
-                    font-weight: 500;
-                    padding: 12px 15px;
-                    text-align: left;
-                }
-                #multibagger-table td {
-                    padding: 12px 15px;
-                    border-bottom: 1px solid #e0e0e0;
-                    vertical-align: middle;
-                }
-                #multibagger-table tr:last-child td {
-                    border-bottom: none;
-                }
-                #multibagger-table tr:hover {
-                    background-color: #f8f9fa;
-                }
-                #multibagger-table th:first-child, 
-                #multibagger-table td:first-child {
-                    padding-left: 20px;
-                }
-                #multibagger-table th:last-child, 
-                #multibagger-table td:last-child {
-                    padding-right: 20px;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
-            
-            # Removed Growth & Projections Analysis and Projections & Valuations sections as requested
-            
-            # Add a note about the projections
-            st.markdown("""
-            <div style='margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px; font-size: 14px;'>
-                <strong>Note:</strong> Projections are based on historical data and standard growth assumptions. 
-                Actual performance may vary. Always conduct thorough research before making investment decisions.
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Multibagger Potential Assessment
-            st.markdown("### 🚀 Multibagger Potential Assessment")
-            
-            # Count positive and negative indicators
-            positive_indicators = sum(1 for m in metrics.values() if 
-                                    m['value'] != 'N/A' and 
-                                    ((m['better'] == 'higher' and float(str(m['value']).replace('%', '')) >= m['target'][1]) or
-                                     (m['better'] == 'lower' and float(str(m['value']).replace('%', '')) <= m['target'][1])))
-            
-            total_indicators = sum(1 for m in metrics.values() if m['value'] != 'N/A')
-            
-            if total_indicators > 0:
-                score = (positive_indicators / total_indicators) * 100
-                
-                if score >= 75:
-                    conclusion = "✅ Strong Multibagger Potential"
-                    reasoning = "The company shows excellent fundamentals across most key metrics. If growth continues and valuations remain reasonable, it has significant multibagger potential."
-                elif score >= 50:
-                    conclusion = "🟡 Moderate Potential"
-                    reasoning = "The company shows promise but has some areas that need improvement. Monitor the key metrics closely for sustained growth."
-                else:
-                    conclusion = "🔴 High Risk"
-                    reasoning = "The company has several red flags that need to be addressed. Exercise caution and conduct further due diligence."
-                
-                st.markdown(f"**Overall Score:** {positive_indicators}/{total_indicators} metrics met ({score:.0f}%)")
-                st.markdown(f"**Conclusion:** {conclusion}")
-                st.markdown(f"**Analysis:** {reasoning}")
-            
-            # Key Conditions for Multibagger Potential
-            st.markdown("### 📈 When Could This Still Become a Multibagger?")
-            
-            # Create a list of conditions and their descriptions with icons
-            conditions = [
-                ("🏦 Debt Reduction", "D/E must fall below 1.0 in 2–3 years via FCF or equity raise"),
-                ("📈 Sustained Growth", "25–30% Earnings CAGR for 3–5 years to justify high P/E"),
-                ("📊 PEG Ratio", "Must drop below 1.0 (growth at reasonable price)"),
-                ("📉 ROE Improvement", "Target >25% through margin expansion and lower debt"),
-                ("💰 Positive FCF", "Cash flow must turn positive to fund growth without dilution")
-            ]
-            
-            # Create a container with better spacing
-            with st.container():
-                # Create a grid layout for conditions
-                for i in range(0, len(conditions), 2):
-                    cols = st.columns(2)
-                    for j in range(2):
-                        if i + j < len(conditions):
-                            with cols[j]:
-                                condition, description = conditions[i + j]
-                                st.markdown(
-                                    f"""
-                                    <div style='
-                                        background: white;
-                                        border-radius: 10px;
-                                        padding: 15px;
-                                        margin-bottom: 15px;
-                                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                                        border-left: 4px solid #2c3e50;
-                                    '>
-                                        <div style='font-weight: 600; margin-bottom: 8px; font-size: 15px;'>{condition}</div>
-                                        <div style='color: #555; font-size: 14px; line-height: 1.5;'>{description}</div>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True
-                                )
-            
-            # Add note with improved styling
-            st.markdown(
-                """
-                <div style='
-                    margin: 20px 0;
-                    padding: 15px;
-                    background-color: #f0f7ff;
-                    border-radius: 8px;
-                    border-left: 4px solid #3498db;
-                    font-size: 14px;
-                    line-height: 1.6;
-                '>
-                    <strong>📊 Monitoring Tip:</strong> Track these conditions quarterly to assess if the company is on track to become a multibagger. 
-                    Focus on management's execution against these key metrics in earnings calls and reports.
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        st.markdown("""
+        <div style='margin-top: 10px; font-size: 13px; color: #666;'>
+            <strong>Note:</strong> All valuation metrics are based on the most recent available data.
+            P/E and other ratios are calculated using TTM (Trailing Twelve Months) figures unless specified.
+        </div>
+        """, unsafe_allow_html=True)
+
+def render_financials_tab(stock_info):
+    """Render the content of the Financials tab."""
+    st.subheader("Financial Health")
+    
+    with st.container():
+        financial_metrics = [
+            ("Current Ratio", stock_info['financials'].get('Current Ratio', 'N/A')),
+            ("Quick Ratio", stock_info['financials'].get('Quick Ratio', 'N/A')),
+            ("Debt/Equity", stock_info['financials'].get('Debt/Equity', 'N/A')),
+            ("Interest Coverage", stock_info['financials'].get('Interest Coverage', 'N/A')),
+            ("ROE", stock_info['financials'].get('ROE', 'N/A')),
+            ("ROA", stock_info['financials'].get('ROA', 'N/A')),
+            ("ROIC", stock_info['financials'].get('ROIC', 'N/A')),
+            ("Operating Margin", stock_info['growth'].get('Operating Margin', 'N/A')),
+            ("Net Margin", stock_info['growth'].get('Net Margin', 'N/A')),
+            ("EBITDA Margin", stock_info['growth'].get('EBITDA Margin', 'N/A')),
+            ("Revenue Growth (YoY)", stock_info['growth'].get('Revenue Growth (YoY)', 'N/A')),
+            ("Earnings Growth (YoY)", stock_info['growth'].get('Earnings Growth (YoY)', 'N/A')),
+            ("FCF Growth (YoY)", stock_info['growth'].get('FCF Growth (YoY)', 'N/A')),
+            ("Dividend Payout Ratio", stock_info['financials'].get('Payout Ratio', 'N/A')),
+            ("Dividend Yield", stock_info['financials'].get('Dividend Yield', 'N/A'))
+        ]
         
+        mid_point = (len(financial_metrics) + 1) // 2
+        left_metrics = financial_metrics[:mid_point]
+        right_metrics = financial_metrics[mid_point:]
+        
+        df = pd.DataFrame({
+            'Metric': [m[0] for m in left_metrics],
+            'Value': [m[1] for m in left_metrics],
+            '  ': [''] * len(left_metrics),
+            'Metric ': [m[0] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics)),
+            'Value ': [m[1] for m in right_metrics] + [''] * (len(left_metrics) - len(right_metrics))
+        })
+        
+        html = df.to_html(
+            index=False,
+            classes='financial-table',
+            escape=False,
+            header=True,
+            justify='left'
+        )
+        
+        html = html.replace('<td>', '<td class="value-col">')
+        html = html.replace('<td> </td>', '<td class="spacer-col"></td>')
+        
+        st.markdown(html, unsafe_allow_html=True)
+
+def get_metric_analysis(metric_name, current_value, target_type, target_value, is_higher_better=True):
+    """Analyze a single metric and return its status and styling."""
+    if current_value == 'N/A' or current_value is None:
+        return 'gray', '❓ Unknown', "Data not available"
+    
+    try:
+        clean_val = float(str(current_value).replace('₹', '').replace('%', '').split(' ')[0].replace(',', ''))
+        
+        if 'Debt/Equity' in metric_name:
+            is_met = clean_val <= target_value
+            target_text = f"<= {target_value}"
+            color = '#2ecc71' if is_met else '#e74c3c'
+            verdict = '✅ Good' if is_met else '⚠️ High'
+        elif 'P/E' in metric_name or 'PEG' in metric_name:
+            is_met = clean_val <= target_value
+            target_text = f"<= {target_value}"
+            color = '#2ecc71' if is_met else '#e74c3c'
+            verdict = '✅ Good' if is_met else '⚠️ High'
+        else:
+            if target_type == 'min':
+                is_met = clean_val >= target_value if is_higher_better else clean_val <= target_value
+                target_text = f">= {target_value}%" if is_higher_better else f"<= {target_value}"
+            elif target_type == 'max':
+                is_met = clean_val <= target_value if is_higher_better else clean_val >= target_value
+                target_text = f"<= {target_value}" if is_higher_better else f">= {target_value}%"
+            
+            if is_met:
+                color = '#2ecc71'
+                verdict = '✅ Strong' if is_higher_better else '✅ Good'
+            else:
+                color = '#e74c3c'
+                verdict = '⚠️ Needs Improvement' if is_higher_better else '⚠️ High'
+        
+        return color, verdict, target_text
+    
+    except (ValueError, IndexError) as e:
+        print(f"Error processing {metric_name}: {e}")
+        return 'gray', '❓ Unknown', "Invalid data"
+
+def calculate_eps_cagr(tick):
+    """Calculate EPS CAGR for the last 5 years."""
+    eps_cagr = 'N/A'
+    try:
+        hist = tick.history(period="5y")
+        if not hist.empty and 'Close' in hist.columns:
+            if 'trailingEps' in tick.info and tick.info['trailingEps'] is not None:
+                current_eps = tick.info['trailingEps']
+                oldest_eps = current_eps / (1 + (tick.info.get('earningsGrowth', 0) or 0)) ** 4
+                if oldest_eps > 0:
+                    eps_cagr_calc = ((current_eps / oldest_eps) ** (1/5) - 1) * 100
+                    eps_cagr = f"{eps_cagr_calc:.1f}%"
+    except Exception as e:
+        print(f"Error calculating EPS CAGR: {e}")
+    
+    return eps_cagr
+
+def render_multibagger_tab(tick, stock_info, metrics):
+    """Render the content of the Multibagger tab."""
+    st.subheader("Multibagger Potential Analysis")
+    st.markdown("*Comprehensive evaluation of key financial metrics*")
+    
+    # Calculate EPS CAGR
+    eps_cagr = calculate_eps_cagr(tick)
+    
+    # Display metrics in a clean, well-formatted table
+    st.markdown("### Key Financial Metrics")
+    
+    # Create a DataFrame for the table with proper formatting
+    table_data = []
+    for metric, data in metrics.items():
+        is_higher_better = data['better'] == 'higher'
+        color, verdict, _ = get_metric_analysis(
+            metric, data['value'], data['target'][0], data['target'][1], is_higher_better
+        )
+        
+        clean_value = str(data['value']).replace('₹', '').replace('%', '').strip()
+        try:
+            float_val = float(clean_value.split(' ')[0])
+            formatted_value = f"{float_val:,.2f}"
+            if '%' in str(data['value']):
+                formatted_value += '%'
+            if '₹' in str(data['value']):
+                formatted_value = '₹' + formatted_value
+            colored_value = f"<span style='color: {color}; font-weight: 600;'>{formatted_value}</span>"
+        except (ValueError, IndexError):
+            colored_value = f"<span style='color: {color}; font-weight: 600;'>{data['value']}</span>"
+        
+        colored_verdict = f"<span style='color: {color};'>{verdict}</span>"
+        
+        table_data.append({
+            'Parameter': metric,
+            'Your Value': colored_value,
+            'Target': data.get('ideal', ''),
+            'Verdict': colored_verdict,
+            'Why It Matters': data['importance']
+        })
+    
+    df_table = pd.DataFrame(table_data)
+    
+    st.markdown(
+        "<div style='margin: 15px 0; overflow-x: auto;'>" +
+        df_table.to_html(escape=False, index=False, 
+                        classes='dataframe',
+                        table_id='multibagger-table') +
+        "</div>" +
+        """
+        <div style='margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px; font-size: 14px;'>
+            <strong>Note:</strong> Projections are based on historical data and standard growth assumptions. 
+            Actual performance may vary. Always conduct thorough research before making investment decisions.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Multibagger Potential Assessment
+    st.markdown("### 🚀 Multibagger Potential Assessment")
+    
+    # Count positive and negative indicators
+    positive_indicators = sum(1 for m in metrics.values() 
+                            if m['value'] != 'N/A' 
+                            and ((m['better'] == 'higher' and float(str(m['value']).replace('%', '')) >= m['target'][1]) or
+                                (m['better'] == 'lower' and float(str(m['value']).replace('%', '')) <= m['target'][1])))
+    
+    total_indicators = sum(1 for m in metrics.values() if m['value'] != 'N/A')
+    
+    if total_indicators > 0:
+        score = (positive_indicators / total_indicators) * 100
+        
+        if score >= 75:
+            conclusion = "✅ Strong Multibagger Potential"
+            reasoning = "The company shows excellent fundamentals across most key metrics. If growth continues and valuations remain reasonable, it has significant multibagger potential."
+        elif score >= 50:
+            conclusion = "🟡 Moderate Potential"
+            reasoning = "The company shows promise but has some areas that need improvement. Monitor the key metrics closely for sustained growth."
+        else:
+            conclusion = "🔴 High Risk"
+            reasoning = "The company has several red flags that need to be addressed. Exercise caution and conduct further due diligence."
+        
+        st.markdown(f"**Overall Score:** {positive_indicators}/{total_indicators} metrics met ({score:.0f}%)")
+        st.markdown(f"**Conclusion:** {conclusion}")
+        st.markdown(f"**Analysis:** {reasoning}")
+    
+    # Key Conditions for Multibagger Potential
+    st.markdown("### 📈 When Could This Still Become a Multibagger?")
+    
+    # Create a list of conditions and their descriptions with icons
+    conditions = [
+        ("🏦 Debt Reduction", "D/E must fall below 1.0 in 2–3 years via FCF or equity raise"),
+        ("📈 Sustained Growth", "25–30% Earnings CAGR for 3–5 years to justify high P/E"),
+        ("📊 PEG Ratio", "Must drop below 1.0 (growth at reasonable price)"),
+        ("📉 ROE Improvement", "Target >25% through margin expansion and lower debt"),
+        ("💰 Positive FCF", "Cash flow must turn positive to fund growth without dilution")
+    ]
+    
+    # Create a container with better spacing
+    with st.container():
+        # Create a grid layout for conditions
+        for i in range(0, len(conditions), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j < len(conditions):
+                    with cols[j]:
+                        condition, description = conditions[i + j]
+                        st.markdown(
+                            f"""
+                            <div style='
+                                background: white;
+                                border-radius: 10px;
+                                padding: 15px;
+                                margin-bottom: 15px;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                                border-left: 4px solid #2c3e50;
+                            '>
+                                <div style='font-weight: 600; margin-bottom: 8px; font-size: 15px;'>{condition}</div>
+                                <div style='color: #555; font-size: 14px; line-height: 1.5;'>{description}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+    
+    # Add note with improved styling
+    st.markdown(
+        """
+        <div style='
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            font-size: 14px;
+            line-height: 1.6;
+        '>
+            <strong>📊 Monitoring Tip:</strong> Track these conditions quarterly to assess if the company is on track to become a multibagger. 
+            Focus on management's execution against these key metrics in earnings calls and reports.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def companyDetails(company_data, ticker):
+    """Display comprehensive company information and analysis."""
+    # Apply custom styles
+    st.markdown(get_company_styles(), unsafe_allow_html=True)
+    
+    try:
+        # Create Ticker object and get data
+        tick = yf.Ticker(ticker)
+        stock_info = extract_stock_info(tick.info)
+        metrics = get_financial_metrics(tick, stock_info)
+        eps_ttm, eps_forward, eps_growth = get_eps_data(tick)
+        
+        # Render company header and metrics
+        render_company_header(company_data, ticker, stock_info)
+        render_metrics_grid(stock_info, eps_ttm, eps_growth)
+        
+        # Create tabs for different sections
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📊 Overview", "📈 Valuation", 
+            "💰 Financials", "💎 Multibagger"
+        ])
+        
+        with tab1:
+            render_overview_tab(tick, stock_info)
+        with tab2:
+            render_valuation_tab(stock_info, eps_ttm, eps_forward, eps_growth)
+        with tab3:
+            render_financials_tab(stock_info)
+        with tab4:
+            render_multibagger_tab(tick, stock_info, metrics)
+            
         # Display technical indicators in an expander
         with st.expander("📈 View Technical Indicators"):
             compute_latest_technical_indicators(ticker)
             
     except Exception as e:
+        # Error handling and fallback UI
         st.error(f"Error fetching stock data: {str(e)}")
-        # Fallback to basic display if yfinance fails
         st.title(company_data.get('Company Name', ''))
         col1, col2 = st.columns(2)
         with col1:

@@ -2,7 +2,7 @@
 from langchain_core.tools import Tool
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Optional, Dict
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.messages import AIMessage  # import AIMessage
 from langchain_community.vectorstores import FAISS
@@ -17,8 +17,6 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os 
 from HarryAgent.RouterAgent import classify_node
-
-
 
 
 load_dotenv()
@@ -116,10 +114,10 @@ def retrieve_context(query, n_docs=8):
 # ---------------------------
 def researcher_node(state: AgentState) -> AgentState:
 
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools=[retrieve_context],
-         prompt=(
+        system_prompt=(
             "You are a research assistant. "
             "For each query, you MUST use both tools in a logical sequence:\n"
             "1) Use **retrieve_context** to fetch internal or domain-specific context first.\n"
@@ -156,10 +154,10 @@ def researcher_node(state: AgentState) -> AgentState:
 # ---------------------------
 def mythology_node(state: AgentState) -> AgentState:
 
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools=[ddg_search_tool],
-          prompt=(
+        system_prompt=(
             "You are an expert in **Indian ancient history and mythology**. "
             "Mix and Relate topic and research with Indian Mythology and Harry Potter Universe"
         )
@@ -200,10 +198,10 @@ def mythology_node(state: AgentState) -> AgentState:
 # ✍️ Writer Agent
 # ---------------------------
 def writer_node(state: AgentState) -> AgentState:
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools = [ddg_search_tool],
-        prompt = (
+        system_prompt = (
             """
             You are an Expert Article Writer having knowledge in both **Indian ancient history and mythology** and **Harry Potter Universe**. 
             Use the `DuckDuckGoSearch` to find additional relevant facts, 
@@ -290,10 +288,10 @@ def writer_node(state: AgentState) -> AgentState:
 # 🧑‍⚖️ Critic Agent
 # ---------------------------
 def critic_node(state: AgentState) -> AgentState:
-    agent = create_react_agent(
+    agent = create_agent(
         model=llm,
         tools = [],
-        prompt=(
+        system_prompt=(
             """
             You are a Critical Reviewer having Knowledge in Both **Harry Potter Universe** and **Indian Mythology**.
             Your response should be concise and brief. Must be less than 5 sentences.
