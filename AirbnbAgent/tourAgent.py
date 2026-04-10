@@ -1,11 +1,8 @@
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
 import streamlit as st
 import os
-from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_core.tools import tool
 from typing import Any
 from langgraph.graph import StateGraph, END, START
@@ -18,11 +15,9 @@ import requests
 import uuid
 from langfuse.langchain import CallbackHandler
 import time
-from streamlit.runtime.scriptrunner import get_script_run_ctx
 import asyncio
 import sys
 import subprocess
-import platform
 import json
 
 # ── Node.js availability check ─────────────────────────────────────
@@ -100,113 +95,64 @@ llm = ChatGroq(
 
 async def airbnbAgent(state):
     print(f"🏠 Airbnb Agent starting for: {state.get('topic', 'unknown')}")
-    
+
     if not _NPX_AVAILABLE:
         msg = "⚠️ Airbnb search is unavailable because Node.js/npx is not functional on this system."
         print(f"⚠️ {msg}")
         return {"knowledge": [msg]}
 
-    ctx = get_script_run_ctx()
-
-    server_params = StdioServerParameters(
-            command="npx",
-            args=[
-                "-y",
-                "@openbnb/mcp-server-airbnb",
-                "--ignore-robots-txt"
-            ],
-        )
-
+    # Use the standalone script via subprocess to avoid Streamlit stdio wrapping issues
+    script_path = os.path.join(os.path.dirname(__file__), "airbnb_search.py")
+    venv_python = os.path.join(os.path.dirname(__file__), "..", ".rp360", "bin", "python")
+    
+    # Ensure we use the venv Python that has all dependencies
+    python_exec = venv_python if os.path.exists(venv_python) else sys.executable
+    
+    print(f"🔧 Running Airbnb search via subprocess: {python_exec} {script_path}")
+    
     try:
-        # Streamlit wraps sys.stderr with a custom object that lacks fileno().
-        # MCP's stdio_client needs a real fd for subprocess creation.
-        _saved_stderr = sys.stderr
-        sys.stderr = sys.__stderr__
+        start_time = time.time()
+        
+        # Run the standalone script as subprocess
+        result = await asyncio.to_thread(
+            subprocess.run,
+            [python_exec, script_path, state['topic']],
+            capture_output=True,
+            text=True,
+            timeout=120  # 2 minute timeout
+        )
+        
+        end_time = time.time()
+        print(f"✅ Airbnb subprocess completed in {end_time - start_time:.2f}s")
+        
+        # Log stderr for debugging
+        if result.stderr:
+            print(f"📝 Airbnb stderr: {result.stderr[:500]}")
+        
+        if result.returncode != 0:
+            error_msg = result.stderr if result.stderr else result.stdout
+            print(f"⚠️ Airbnb script failed (rc={result.returncode}): {error_msg[:300]}")
+            return {"knowledge": [f"⚠️ Airbnb search failed: {error_msg[:200]}"]}
+        
+        # Parse JSON output from stdout
         try:
-            async with stdio_client(server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    print("Initializing Airbnb MCP connection...")
-                    await session.initialize()
-                    print("Loading Airbnb tools...")
-                    tools = await load_mcp_tools(session)
-
-                    agent = create_agent(
-                        model=llm,
-                        tools=tools,
-                        system_prompt=(
-                            """
-                            **ADVANCED HOTEL SEARCH FORMAT**
-
-                            ## 🎯 Search Summary
-                            - **Location:** [location] | **Dates:** [checkin] → [checkout]
-                            - **Guests:** [adults]A, [children]C, [infants]I, [pets]P
-                            - **Room:** [room type] | **Stars:** [rating] | **Amenities:** [amenities]
-                            - **Results:** [number] hotels
-
-                            ## 🏨 Hotel Listings
-                            ### [Hotel Name]
-                            | Detail | Info |
-                            |--------|------|
-                            | ⭐ Rating | [rating]/5 ([reviews]) |
-                            | 📍 Address | [full address] |
-                            | 💰 Rate | $[price]/night (+$[tax]) |
-                            | 🏠 Rooms | [categories] |
-                            | 📏 Distance | [city center] • [airport] |
-                            | 🔗 Booking | [URL] |
-                            | 📞 Contact | [phone] • [website] |
-
-                            **Amenities:** [pool/gym/spa, dining, transport, business, pets, WiFi, services]
-                            **Booking:** Check-in [time], Check-out [time], Cancellation [policy], Payment [methods], Breakfast [info], Parking [info], Extra Beds [policy]
-
-                            **MatchAnalysis:** Budget [fit], Amenities [X/Y matched], Location [score], Guest Reviews [highlights]
-                            **Recommendations:** Best for [use case], Offers [promos], Tips [advice]
-
-                            -- repeat per hotel --
-
-                            ## 📈 Comparison
-                            | Hotel | Rating | Price | Features | Link |
-                            |-------|--------|-------|----------|------|
-                            | [H1] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
-                            | [H2] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
-
-                            ## 🏆 Final Picks
-                            - **Best Value:** [hotel + reason]
-                            - **Luxury:** [hotel + features]
-                            - **Budget:** [hotel + savings]
-                            - **Location:** [hotel + benefit]
-                            - **Amenities:** [hotel + standout]
-                            """
-                        )
-                    )
-
-                    start_time = time.time()
-
-                    with st.spinner("Airbnb Agent Node in Progress…", show_time=True):
-                        response = await agent.ainvoke(
-                            {"messages": [{"role": "user", "content": state['topic']}]},
-                            config={"tags": ["airbnb_search_debug"]}
-                        )
-
-                    # Debug: show tool calls
-                    for msg in response["messages"]:
-                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                            print(f"🔧 Agent called tools: {[tc['name'] for tc in msg.tool_calls]}")
-                            for tc in msg.tool_calls:
-                                print(f"   → {tc['name']}: {json.dumps(tc['args'], indent=2)[:500]}")
-                        elif hasattr(msg, 'content') and msg.content:
-                            content_preview = str(msg.content)[:200]
-                            print(f"💬 LLM response: {content_preview}")
-
-                    ai_content = response["messages"][-1].content
-                    end_time = time.time()
-                    print(f"✅ Airbnb Agent completed in {end_time - start_time:.2f}s")
-
-                    return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
-        finally:
-            sys.stderr = _saved_stderr
-
+            output = json.loads(result.stdout)
+            if output.get("success"):
+                ai_content = output["result"]
+                return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
+            else:
+                error_msg = output.get("error", "Unknown error")
+                return {"knowledge": [f"⚠️ Airbnb search error: {error_msg}"]}
+        except json.JSONDecodeError as e:
+            print(f"⚠️ Failed to parse JSON output: {e}")
+            print(f"  stdout: {result.stdout[:200]}")
+            return {"knowledge": [f"⚠️ Failed to parse Airbnb search results: {result.stdout[:200]}"]}
+        
+    except subprocess.TimeoutExpired:
+        print("⚠️ Airbnb search timed out after 120s")
+        return {"knowledge": ["⚠️ Airbnb search timed out. The search took too long to complete."]}
     except Exception as e:
-        print(f"⚠️ Airbnb MCP failed: {type(e).__name__}: {e}")
+        print(f"⚠️ Airbnb subprocess failed: {type(e).__name__}: {e}")
         return {"knowledge": [f"⚠️ Airbnb search failed ({type(e).__name__}: {e})."]}
 
 
