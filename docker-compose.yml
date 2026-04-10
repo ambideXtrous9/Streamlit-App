@@ -7,11 +7,12 @@ services:
     ports:
       - "8051:8051"
     volumes:
-      - hf-cache:/app/.cache/huggingface
+      # Only mount SQLite data to persist across container recreates
       - sqlite-data:/app
     environment:
       - PYTHONUNBUFFERED=true
       - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - HF_HOME=/app/.cache/huggingface
       - GROQ_API_KEY=${GROQ_API_KEY}
       - WEATHER_API_KEY=${WEATHER_API_KEY}
     healthcheck:
@@ -23,7 +24,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  hf-cache:
-    driver: local
   sqlite-data:
     driver: local

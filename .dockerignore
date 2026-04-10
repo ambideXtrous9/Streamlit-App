@@ -16,6 +16,7 @@ venv/
 env/
 ENV/
 .port/
+.rp360/
 
 # IDE/editor files
 .idea/
@@ -78,3 +79,8 @@ Jenkinsfile
 
 # Jupyter notebooks (not needed in production)
 *.ipynb
+
+# Temporary files
+.tmp_*
+.tmp/
+*.tmp

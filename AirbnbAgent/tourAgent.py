@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq
-from langchain.agents import create_agent
+from langchain.agents.factory import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 import streamlit as st
 import os
@@ -21,9 +21,9 @@ import subprocess
 import json
 
 # ── Node.js availability check ─────────────────────────────────────
-# - Linux (Docker, Streamlit Cloud): use bundled nodev20
-# - macOS: use system Node.js (brew/nvm) — nodev20 is Linux-only
-_IS_LINUX = sys.platform.startswith("linux")
+# - Docker: Node.js 20.x is installed via apt during build
+# - Local dev: Uses system Node.js (brew/nvm)
+# - Falls back to apt install on Linux if not found
 
 def _check_node():
     """Check if node/npx works."""
@@ -37,31 +37,34 @@ def _check_node():
 # Fast path: already available
 _NPX_AVAILABLE = _check_node()
 
-# Fallback: install Node.js via apt on Linux (Streamlit Cloud, Docker)
-if not _NPX_AVAILABLE and _IS_LINUX:
-    print("⚠️ Node.js not found, installing via apt-get...")
-    try:
-        r1 = subprocess.run(
-            ["apt-get", "update", "-qq"],
-            check=False, capture_output=True, timeout=120
-        )
-        print(f"  apt-get update: rc={r1.returncode}")
-        r2 = subprocess.run(
-            ["apt-get", "install", "-y", "-qq", "nodejs", "npm"],
-            check=False, capture_output=True, timeout=180
-        )
-        print(f"  apt-get install nodejs npm: rc={r2.returncode}")
-        if r2.returncode != 0:
-            err = r2.stderr.decode()[:500]
-            print(f"  apt-get stderr: {err}")
-        _NPX_AVAILABLE = _check_node()
-    except Exception as e:
-        print(f"apt-get fallback error: {e}")
+# Fallback: install Node.js via apt on Linux only if not already available
+if not _NPX_AVAILABLE:
+    import sys as _sys
+    if _sys.platform.startswith("linux"):
+        print("⚠️ Node.js not found, installing via apt-get...")
+        try:
+            r1 = subprocess.run(
+                ["apt-get", "update", "-qq"],
+                check=False, capture_output=True, timeout=120
+            )
+            print(f"  apt-get update: rc={r1.returncode}")
+            r2 = subprocess.run(
+                ["apt-get", "install", "-y", "-qq", "nodejs", "npm"],
+                check=False, capture_output=True, timeout=180
+            )
+            print(f"  apt-get install nodejs npm: rc={r2.returncode}")
+            if r2.returncode != 0:
+                err = r2.stderr.decode()[:500]
+                print(f"  apt-get stderr: {err}")
+            _NPX_AVAILABLE = _check_node()
+        except Exception as e:
+            print(f"apt-get fallback error: {e}")
 
 if not _NPX_AVAILABLE:
-    print("⚠️ Airbnb MCP requires Node.js. Install it to enable this feature.")
+    print("⚠️ Airbnb MCP requires Node.js/npx. Install it to enable this feature.")
 else:
-    print("✅ Node.js/npx available — Airbnb MCP enabled")
+    node_version = subprocess.run(["node", "-v"], capture_output=True, text=True, timeout=5)
+    print(f"✅ Node.js {node_version.stdout.strip()} available — Airbnb MCP enabled")
 
 # Langfuse handler: graceful if not configured
 try:

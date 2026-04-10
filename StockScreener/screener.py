@@ -77,7 +77,7 @@ llm = ChatGroq(
 google_news = GNews(language='en', period='30d',max_results=10)
 
 from StockScreener.mlpchart.mlpchart import chart
-from langchain.agents import create_agent
+from langchain.agents.factory import create_agent
 
 stock_agent = create_agent(
         model=llm,

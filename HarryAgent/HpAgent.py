@@ -1,7 +1,7 @@
 from langchain_core.tools import Tool
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Optional, Dict
-from langchain.agents import create_agent
+from langchain.agents.factory import create_agent
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import AIMessage  # import AIMessage
 from langchain_community.vectorstores import FAISS
