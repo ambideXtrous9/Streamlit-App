@@ -406,14 +406,14 @@ def compute_latest_technical_indicators(ticker: str):
 
 def BreakoutVolume(niftylist):
     stockList = []
-    
+
     total_items = len(niftylist)
     itr = 0
     progress_bar = st.progress(0)
 
     # Cache for storing stock data
     stock_cache = {}
-    
+
     # Get current date for week and month calculations
     current_date = pd.Timestamp.now()
     current_week = current_date.strftime('%Y-%U')
@@ -464,8 +464,8 @@ def BreakoutVolume(niftylist):
         four_days_ago_values = dt.iloc[4]
 
         # Filter by volume and price first (most likely to fail)
-        if (daily_values['Volume'] < daily_values['Volume_EMA20'] or 
-            daily_values['Close'] < daily_values['50_SMA'] or 
+        if (daily_values['Volume'] < daily_values['Volume_EMA20'] or
+            daily_values['Close'] < daily_values['50_SMA'] or
             daily_values['Close'] < daily_values['20_SMA'] or
             daily_values['Close'] < daily_values['30_SMA'] or
             daily_values['Close'] < daily_values['100_SMA'] or
@@ -477,11 +477,11 @@ def BreakoutVolume(niftylist):
         # Get week and month data
         # Sort by date in ascending order to get the most recent data
         dt_sorted = dt.sort_values(by='Date', ascending=True)
-        
+
         # Get the most recent data point for week and month
         week_filtered = dt_sorted[dt_sorted['Date'].dt.strftime('%Y-%U') == current_week]
         month_filtered = dt_sorted[dt_sorted['Date'].dt.to_period('M') == current_month]
-        
+
         if week_filtered.empty or month_filtered.empty:
             # If we don't have data for current week/month, try getting the most recent available data
             week_data = dt_sorted.iloc[-1]
@@ -499,15 +499,15 @@ def BreakoutVolume(niftylist):
         four_day_range = abs(four_days_ago_values['High'] - four_days_ago_values['Low'])
 
         # Check price ranges
-        if not (daily_range > prev_range and 
-               daily_range > two_day_range and 
-               daily_range > three_day_range and 
+        if not (daily_range > prev_range and
+               daily_range > two_day_range and
+               daily_range > three_day_range and
                daily_range > four_day_range):
             continue
 
         # Check closing conditions
-        if not (daily_values['Close'] > daily_values['Open'] and 
-               daily_values['Close'] > week_data['Open'] and 
+        if not (daily_values['Close'] > daily_values['Open'] and
+               daily_values['Close'] > week_data['Open'] and
                daily_values['Close'] > month_data['Open']):
             continue
 
@@ -519,6 +519,174 @@ def BreakoutVolume(niftylist):
         stockList.append(symbol)
 
     return stockList
+
+
+# ─── New Chartink-style Screeners ─────────────────────────────────────
+
+def HighestEPS(stock_list):
+    """Screener: Highest Earning Per Share (EPS) stocks"""
+    results = []
+    total = len(stock_list)
+    progress = st.progress(0)
+
+    for i, symbol in enumerate(stock_list):
+        progress.progress((i + 1) / total)
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            eps = info.get('trailingEps')
+            pe = info.get('trailingPE')
+            mcap = info.get('marketCap')
+            if eps and eps > 0:
+                results.append({
+                    'Symbol': symbol,
+                    'EPS': round(eps, 2),
+                    'P/E': round(pe, 2) if pe else None,
+                    'Mkt Cap (Cr)': round(mcap / 1e7, 1) if mcap else None
+                })
+        except Exception:
+            continue
+
+    if results:
+        df = pd.DataFrame(results).sort_values('EPS', ascending=False).reset_index(drop=True)
+        return df
+    return pd.DataFrame()
+
+
+def LowDebtCompanies(stock_list):
+    """Screener: Low Debt Companies (Debt/Equity < 0.5)"""
+    results = []
+    total = len(stock_list)
+    progress = st.progress(0)
+
+    for i, symbol in enumerate(stock_list):
+        progress.progress((i + 1) / total)
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            de_ratio = info.get('debtToEquity')
+            current_ratio = info.get('currentRatio')
+            mcap = info.get('marketCap')
+            pe = info.get('trailingPE')
+            if de_ratio is not None and de_ratio < 50:  # yfinance gives D/E as percentage
+                de_normalized = round(de_ratio / 100, 2)
+                if de_normalized < 0.5:  # Debt/Equity < 0.5
+                    results.append({
+                        'Symbol': symbol,
+                        'Debt/Equity': de_normalized,
+                        'Current Ratio': round(current_ratio, 2) if current_ratio else None,
+                        'P/E': round(pe, 2) if pe else None,
+                        'Mkt Cap (Cr)': round(mcap / 1e7, 1) if mcap else None
+                    })
+        except Exception:
+            continue
+
+    if results:
+        df = pd.DataFrame(results).sort_values('Debt/Equity').reset_index(drop=True)
+        return df
+    return pd.DataFrame()
+
+
+def BearishEngulfingStrong(stock_list):
+    """Screener: Bearish Engulfing pattern with strong volume"""
+    results = []
+    total = len(stock_list)
+    progress = st.progress(0)
+
+    for i, symbol in enumerate(stock_list):
+        progress.progress((i + 1) / total)
+        try:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period="30d", interval="1d")
+            if len(df) < 3:
+                continue
+
+            # Check last 2 candles for bearish engulfing
+            prev = df.iloc[-2]
+            curr = df.iloc[-1]
+
+            # Bearish engulfing: prev green, curr red, curr body engulfs prev body
+            prev_bullish = prev['Close'] > prev['Open']
+            curr_bearish = curr['Close'] < curr['Open']
+            curr_body = abs(curr['Close'] - curr['Open'])
+            prev_body = abs(prev['Close'] - prev['Open'])
+
+            is_engulfing = (curr_bearish and prev_bullish and
+                           curr['Open'] >= prev['Close'] and
+                           curr['Close'] <= prev['Open'] and
+                           curr_body > prev_body)
+
+            # Strong volume: today's volume > 1.5x average
+            avg_vol = df['Volume'].mean()
+            vol_ratio = curr['Volume'] / avg_vol if avg_vol > 0 else 0
+
+            if is_engulfing and vol_ratio > 1.5:
+                results.append({
+                    'Symbol': symbol,
+                    'Close': round(curr['Close'], 2),
+                    'Volume Ratio': round(vol_ratio, 2),
+                    'Avg Volume': int(avg_vol),
+                    'Today Volume': int(curr['Volume']),
+                    'Body Size': round(curr_body, 2)
+                })
+        except Exception:
+            continue
+
+    if results:
+        df = pd.DataFrame(results).sort_values('Volume Ratio', ascending=False).reset_index(drop=True)
+        return df
+    return pd.DataFrame()
+
+
+def ProfitJump200(stock_list):
+    """Screener: Profit Jump by 200%+ (latest quarter vs previous quarter)"""
+    results = []
+    total = len(stock_list)
+    progress = st.progress(0)
+
+    for i, symbol in enumerate(stock_list):
+        progress.progress((i + 1) / total)
+        try:
+            ticker = yf.Ticker(symbol)
+            # Get quarterly financials
+            financials = ticker.quarterly_income_stmt
+            if financials is None or financials.empty:
+                continue
+
+            # Get Net Income row
+            if 'Net Income' in financials.index:
+                net_income = financials.loc['Net Income']
+            elif 'Net Income From Continuing Operations' in financials.index:
+                net_income = financials.loc['Net Income From Continuing Operations']
+            else:
+                continue
+
+            if len(net_income) < 2:
+                continue
+
+            latest_q = net_income.iloc[0]
+            prev_q = net_income.iloc[1]
+
+            if prev_q and prev_q > 0 and latest_q:
+                growth_pct = ((latest_q - prev_q) / abs(prev_q)) * 100
+
+                if growth_pct >= 200:
+                    info = ticker.info
+                    results.append({
+                        'Symbol': symbol,
+                        'Latest Qtr Profit': round(latest_q / 1e7, 2),
+                        'Prev Qtr Profit': round(prev_q / 1e7, 2),
+                        'Growth %': round(growth_pct, 1),
+                        'P/E': round(info.get('trailingPE', 0), 2) if info.get('trailingPE') else None,
+                        'Mkt Cap (Cr)': round(info.get('marketCap', 0) / 1e7, 1) if info.get('marketCap') else None
+                    })
+        except Exception:
+            continue
+
+    if results:
+        df = pd.DataFrame(results).sort_values('Growth %', ascending=False).reset_index(drop=True)
+        return df
+    return pd.DataFrame()
 
 def results(soup):
 
@@ -1549,83 +1717,97 @@ def StockScan():
     if 'analysis_stockList' not in st.session_state:
         st.session_state.analysis_stockList = []
 
-    # Two side-by-side buttons
-    col1, col2, col3 = st.columns(3)
+    # ─── Screener Tabs ────────────────────────────────────────────────
+    tab_vol, tab_eps, tab_debt, tab_bear, tab_profit, tab_analysis = st.tabs([
+        "📈 Volume Breakout",
+        "💰 Highest EPS",
+        "🏦 Low Debt Companies",
+        "📉 Bearish Engulfing",
+        "🚀 Profit Jump 200%+",
+        "📋 Stocks Analysis"
+    ])
 
-    with col1:
-        if st.button("📈 Volume Breakout NIFTY500", key='nifty500_btn'):
-            st.session_state.selected_option = "Volume Breakout NIFTY500"
-
-    with col2:
-        if st.button("📈 Volume Breakout MICROCAP250", key='microcap250_btn'):
-            st.session_state.selected_option = "Volume Breakout MICROCAP250"
-
-    with col3:
-        if st.button("📊 Stocks Analysis", key='analysis_btn'):
-            st.session_state.selected_option = "Stocks Analysis"
-
-    # Get the current selection from session state
-    selected_option = st.session_state.selected_option
-
-    # Show results based on selected option
-    if selected_option == "Volume Breakout NIFTY500":
-        st.title("Running Scan on NIFTY500")
-        if st.button("Run Scan", key='nifty500_run_btn'):
-            stockList = BreakoutVolume(df500)
-            st.session_state.nifty500_stockList = stockList
-
-        if st.session_state.nifty500_stockList:
-            st.success(f'Scan Complete : {len(st.session_state.nifty500_stockList)} Stocks Found', icon="✅")
-            st.subheader("Stocks")
+    # ── Helper: render stock list + analysis dropdown ────────────────
+    def _render_stock_list(stock_key, label="Stocks"):
+        stocks = st.session_state.get(stock_key)
+        if stocks:
+            st.success(f'Scan Complete: {len(stocks)} {label} Found', icon="✅")
             cols = st.columns(2)
-            for i, stock in enumerate(st.session_state.nifty500_stockList):
-                cols[i % 2].write(stock)
-            
+            for i, s in enumerate(stocks):
+                cols[i % 2].write(s)
             option = st.selectbox(
-                "List of Stocks",
-                st.session_state.nifty500_stockList,
-                index=None,
+                "Select a Stock for Analysis",
+                stocks, index=None,
                 placeholder="Select the Stock",
+                key=f"sel_{stock_key}"
             )
-
             if option:
                 reportGenerator(option)
 
-    elif selected_option == "Volume Breakout MICROCAP250":
-        st.title("Running Scan on MICROCAP250")
-        if st.button("Run Scan", key='microcap250_run_btn'):
-            stockList = BreakoutVolume(microcap250)
-            st.session_state.microcap250_stockList = stockList
-
-        if st.session_state.microcap250_stockList:
-            st.success(f'Scan Complete : {len(st.session_state.microcap250_stockList)} Stocks Found', icon="✅")
-            st.subheader("Stocks")
-            cols = st.columns(2)
-            for i, stock in enumerate(st.session_state.microcap250_stockList):
-                cols[i % 2].write(stock)
-            
+    def _render_df_analysis(df, key_prefix):
+        if df is not None and not df.empty:
+            st.success(f'Scan Complete: {len(df)} Stocks Found', icon="✅")
+            st.dataframe(df, use_container_width=True, hide_index=True)
             option = st.selectbox(
-                "List of Stocks",
-                st.session_state.microcap250_stockList,
-                index=None,
+                "Select a Stock for Analysis",
+                df['Symbol'].tolist(), index=None,
                 placeholder="Select the Stock",
+                key=f"sel_{key_prefix}"
             )
-
             if option:
                 reportGenerator(option)
-                
-    elif selected_option == "Stocks Analysis":
+
+    # ── Tab 1: Volume Breakout ────────────────────────────────────────
+    with tab_vol:
+        sub_type = st.radio("Universe:", ["NIFTY500", "MICROCAP250"], horizontal=True)
+        st.title(f"Running Scan on {sub_type}")
+        if st.button("Run Scan", key='vol_breakout_run'):
+            stock_list = BreakoutVolume(df500 if sub_type == "NIFTY500" else microcap250)
+            st.session_state.volume_breakout_list = stock_list
+        _render_stock_list('volume_breakout_list')
+
+    # ── Tab 2: Highest EPS ────────────────────────────────────────────
+    with tab_eps:
+        st.title("💰 Highest EPS Screener")
+        st.caption("Filters stocks with positive trailing EPS, sorted highest first")
+        if st.button("Run Scan", key='eps_run'):
+            st.session_state.eps_list = HighestEPS(df500)
+        _render_df_analysis(st.session_state.get('eps_list'), 'eps')
+
+    # ── Tab 3: Low Debt Companies ─────────────────────────────────────
+    with tab_debt:
+        st.title("🏦 Low Debt Companies Screener")
+        st.caption("Filters stocks with Debt/Equity ratio < 0.5")
+        if st.button("Run Scan", key='debt_run'):
+            st.session_state.debt_list = LowDebtCompanies(df500)
+        _render_df_analysis(st.session_state.get('debt_list'), 'debt')
+
+    # ── Tab 4: Bearish Engulfing ──────────────────────────────────────
+    with tab_bear:
+        st.title("📉 Bearish Engulfing Screener")
+        st.caption("Detects bearish engulfing candlestick pattern with volume > 1.5x average")
+        if st.button("Run Scan", key='bearish_run'):
+            st.session_state.bearish_list = BearishEngulfingStrong(df500)
+        _render_df_analysis(st.session_state.get('bearish_list'), 'bearish')
+
+    # ── Tab 5: Profit Jump 200%+ ──────────────────────────────────────
+    with tab_profit:
+        st.title("🚀 Profit Jump 200%+ Screener")
+        st.caption("Finds stocks where latest quarter profit jumped ≥ 200% vs previous quarter")
+        if st.button("Run Scan", key='profit_run'):
+            st.session_state.profit_list = ProfitJump200(df500)
+        _render_df_analysis(st.session_state.get('profit_list'), 'profit')
+
+    # ── Tab 6: Stocks Analysis ────────────────────────────────────────
+    with tab_analysis:
         option = st.selectbox(
             "List of Stocks",
             complist,
             index=None,
             placeholder="Select the Stock",
         )
-
         st.write("You selected:", option)
-
         option = get_yf_symbol(option)
-        
         if option:
             reportGenerator(option)
     
