@@ -20,8 +20,8 @@ def chart(ticker):
         MACD(),
     ]
 
-    chart = Chart(title=ticker)
-    chart.plot(prices, indicators)
+    chart = Chart(prices=prices, title=ticker)
+    chart.plot(indicators)
     x = chart.render(format='png')
     image = Image.open(io.BytesIO(x))
     #st.image(image, caption=None, width=800, use_container_width=None, clamp=False, channels="RGB", output_format="PNG")buffered = io.BytesIO()

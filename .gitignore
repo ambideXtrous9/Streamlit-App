@@ -5,3 +5,6 @@ TXT.txt
 .secrets.toml
 .streamlit
 stenv
+
+.port
+.qwen

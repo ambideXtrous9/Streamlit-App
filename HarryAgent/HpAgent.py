@@ -1,9 +1,8 @@
-# langgraph_multiagent.py
 from langchain_core.tools import Tool
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Optional, Dict
 from langchain.agents import create_agent
-from langchain_community.tools import DuckDuckGoSearchResults
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import AIMessage  # import AIMessage
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -12,16 +11,16 @@ from sentence_transformers import CrossEncoder
 from langchain_core.tools import tool
 import torch
 import time
-import streamlit as st 
+import streamlit as st
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-import os 
+import os
 from HarryAgent.RouterAgent import classify_node
 
 
 load_dotenv()
 
-ddg_search = DuckDuckGoSearchResults()
+ddg_search = DuckDuckGoSearchRun()
 
 
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
@@ -33,12 +32,12 @@ temperature = 0.7
 llm = ChatGroq(
     model_name=model_name,
     temperature=temperature
-)   
+)
 
 
 ddg_search_tool = Tool(
     name="DuckDuckGoSearch",
-    func=ddg_search.run,  # Uses the standard `.run()` interface
+    func=ddg_search.invoke,  # Updated from .run() to .invoke() for v1.x compatibility
     description=(
         "Use this tool to perform a DuckDuckGo web search and return JSON-formatted results. "
         "Input: a search query string; Output: a JSON array of search results."

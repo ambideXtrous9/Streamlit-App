@@ -17,12 +17,13 @@ def PointsInCircum(r, n=100):
 
 def dataGen():
     # Creating data points in the form of a circle
-    df = pd.DataFrame(PointsInCircum(500, 1000))
-    df = df._append(PointsInCircum(300, 700))
-    df = df._append(PointsInCircum(100, 300))
+    df1 = pd.DataFrame(PointsInCircum(500, 1000))
+    df2 = pd.DataFrame(PointsInCircum(300, 700))
+    df3 = pd.DataFrame(PointsInCircum(100, 300))
+    df_noise = pd.DataFrame([(np.random.randint(-600, 600), np.random.randint(-600, 600)) for i in range(300)])
 
-    # Adding noise to the dataset
-    df = df._append([(np.random.randint(-600, 600), np.random.randint(-600, 600)) for i in range(300)])
+    # Using pd.concat() instead of deprecated _append()
+    df = pd.concat([df1, df2, df3, df_noise], ignore_index=True)
     return df
 
     

@@ -26,8 +26,16 @@ os.environ["PATH"] = f"{NODE_BIN}:{os.environ['PATH']}"
 
 import subprocess
 
-subprocess.run(["node", "-v"], check=True)
-subprocess.run(["npx", "--version"], check=True)
+# Verify Node.js is available (non-blocking checks)
+try:
+    subprocess.run(["node", "-v"], check=True, capture_output=True, timeout=5)
+except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    print("⚠️ Node.js not found in PATH - Airbnb features may not work")
+
+try:
+    subprocess.run(["npx", "--version"], check=True, capture_output=True, timeout=5)
+except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    print("⚠️ npx not available - Airbnb agent requires working npx")
 
 langfuse_handler = CallbackHandler()
 
