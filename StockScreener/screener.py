@@ -1681,7 +1681,7 @@ def reportGenerator(option):
 
 
 
-    if st.button("AI Research Report"):
+    if st.button("🤖 AI Research Report", key=f"ai_report_btn_{option}"):
         with st.spinner("Generating Report..."):
             st.markdown(heading, unsafe_allow_html=True)
             report = stock_node(fundainfo,shareholdnres,technical_indicators,multibagger_metrics,top_news)
