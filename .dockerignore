@@ -1,15 +1,8 @@
 # Git
-.git
+.git/
 .gitignore
 
-# Python virtual envs
-.port/
-.venv/
-venv/
-env/
-ENV/
-
-# Python artifacts
+# Python cache and virtual environments
 __pycache__/
 *.py[cod]
 *$py.class
@@ -18,14 +11,20 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.venv/
+venv/
+env/
+ENV/
+.port/
 
-# IDE
+# IDE/editor files
 .idea/
 .vscode/
 *.swp
 *.swo
+*.swn
 
-# OS
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -41,13 +40,41 @@ Thumbs.db
 *.sqlite-shm
 checkpoints.sqlite*
 
-# Logs
+# Logs and documentation
 *.log
+*.md
+README.md
 
-# Node (Docker installs native version)
-nodev20/
-
-# Docker
+# Docker files (not needed inside container)
 docker-compose.yml
+docker-compose*.yml
 .dockerignore
 Dockerfile
+
+# Test files
+tests/
+test.py
+test_*.py
+*_test.py
+pytest.ini
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Environment and config files
+.env
+.env.*
+*.json
+!.streamlit/
+
+# Node.js (Docker installs native version if needed)
+node_modules/
+nodev20/
+
+# CI/CD and deployment
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# Jupyter notebooks (not needed in production)
+*.ipynb

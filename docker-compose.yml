@@ -1,29 +1,25 @@
 services:
   streamlit-app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: streamlit-ai-portfolio
     ports:
       - "8051:8051"
     volumes:
-      - .:/app
       - hf-cache:/app/.cache/huggingface
       - sqlite-data:/app
-    working_dir: /app
-    command: >
-      streamlit run app.py
-      --server.port=8051
-      --server.address=0.0.0.0
-      --server.enableCORS=false
-      --server.enableXsrfProtection=false
     environment:
       - PYTHONUNBUFFERED=true
       - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8051/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     restart: unless-stopped
 
 volumes:
