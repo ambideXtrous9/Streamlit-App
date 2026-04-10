@@ -26,18 +26,20 @@ os.environ["PATH"] = f"{NODE_BIN}:{os.environ['PATH']}"
 
 import subprocess
 
-# Verify Node.js is available (non-blocking checks)
+# Verify Node.js/npx is actually functional at import time
+_NPX_AVAILABLE = False
 try:
     subprocess.run(["node", "-v"], check=True, capture_output=True, timeout=5)
-except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-    print("⚠️ Node.js not found in PATH - Airbnb features may not work")
-
-try:
     subprocess.run(["npx", "--version"], check=True, capture_output=True, timeout=5)
+    _NPX_AVAILABLE = True
 except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-    print("⚠️ npx not available - Airbnb agent requires working npx")
+    print("⚠️ Node.js/npx not functional — Airbnb agent will be disabled")
 
-langfuse_handler = CallbackHandler()
+# Langfuse handler: graceful if not configured
+try:
+    langfuse_handler = CallbackHandler()
+except Exception:
+    langfuse_handler = None
 
 class ArticleResponse(TypedDict):
     topic: str
@@ -64,9 +66,12 @@ llm = ChatGroq(
 
 
 async def airbnbAgent(state):
+    if not _NPX_AVAILABLE:
+        return {"knowledge": ["⚠️ Airbnb search is unavailable because Node.js/npx is not functional on this system. Please install Node.js natively (e.g., `brew install node@20`) to enable this feature."]}
+
     # Get the current Streamlit context
     ctx = get_script_run_ctx()
-    
+
     server_params = StdioServerParameters(
             command= "npx",
             args= [
@@ -398,8 +403,12 @@ def sync_app(topic, thread_id, callbacks):
     asyncio.set_event_loop(loop)
 
     async def run_app():
-        config = {"thread_id": thread_id, "callbacks": [callbacks], "run_name": "tour_agent"}
-        
+        config = {
+            "configurable": {"thread_id": thread_id},
+            "callbacks": callbacks,
+            "run_name": "tour_agent",
+        }
+
         message_box = st.chat_message("assistant")
         text_placeholder = message_box.empty()
         full_text = ""
@@ -442,5 +451,6 @@ def tourChat():
         st.session_state[session_key].append({"role": "user", "content": prompt})
 
         thread_id = str(uuid.uuid4())
-        response = sync_app(prompt, thread_id, langfuse_handler)
+        callbacks = [langfuse_handler] if langfuse_handler else []
+        response = sync_app(prompt, thread_id, callbacks)
         st.session_state[session_key].append({"role": "assistant", "content": response})

@@ -6,9 +6,11 @@ from langchain_core.runnables import RunnableConfig
 import uuid
 from langfuse.langchain import CallbackHandler
 
-
-# Instantiate handler (no args)
-langfuse_handler = CallbackHandler()
+# Langfuse handler: graceful if not configured
+try:
+    langfuse_handler = CallbackHandler()
+except Exception:
+    langfuse_handler = None
 
 
 conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
@@ -47,7 +49,8 @@ def ChatBot():
         # Checkpointer requires one or more of the following 'configurable' keys: thread_id
         thread_id = str(uuid.uuid4())
         thread_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        output = app.invoke(input={"topic": prompt, "review": "Write an awesome article on the topic."}, config={"thread_id":thread_id,"callbacks": [langfuse_handler],"run_name": "hp_agent"})
+        callbacks = [langfuse_handler] if langfuse_handler else []
+        output = app.invoke(input={"topic": prompt, "review": "Write an awesome article on the topic."}, config={"thread_id":thread_id,"callbacks": callbacks,"run_name": "hp_agent"})
         
         if output.get("classification") and output.get("classification")["classification"] == "generic":
             st.chat_message("assistant").markdown(output["classification"]["reply"])

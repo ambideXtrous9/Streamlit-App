@@ -2,17 +2,22 @@
 .git
 .gitignore
 
-# Python
+# Python virtual envs
+.port/
+.venv/
+venv/
+env/
+ENV/
+
+# Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-.env
-.venv
+*.egg-info/
+build/
+dist/
 
 # IDE
 .idea/
@@ -20,16 +25,7 @@ ENV/
 *.swp
 *.swo
 
-# Build files
-*.egg-info/
-build/
-dist/
-
-# Local development
-*.log
-*.sqlite3
-
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -38,4 +34,20 @@ dist/
 ehthumbs.db
 Thumbs.db
 
-# Project specific (add any other files/directories you want to exclude)
+# Local data (not needed in container)
+*.sqlite3
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+checkpoints.sqlite*
+
+# Logs
+*.log
+
+# Node (Docker installs native version)
+nodev20/
+
+# Docker
+docker-compose.yml
+.dockerignore
+Dockerfile

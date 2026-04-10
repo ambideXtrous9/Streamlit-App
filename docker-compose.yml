@@ -1,15 +1,33 @@
-version: '3.8'
-
 services:
   streamlit-app:
     build: .
-    container_name: streamlit-app
+    container_name: streamlit-ai-portfolio
     ports:
       - "8051:8051"
     volumes:
       - .:/app
+      - hf-cache:/app/.cache/huggingface
+      - sqlite-data:/app
     working_dir: /app
-    command: streamlit run --server.port=8051 --server.address=0.0.0.0 app.py
+    command: >
+      streamlit run app.py
+      --server.port=8051
+      --server.address=0.0.0.0
+      --server.enableCORS=false
+      --server.enableXsrfProtection=false
     environment:
       - PYTHONUNBUFFERED=true
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8051/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+
+volumes:
+  hf-cache:
+    driver: local
+  sqlite-data:
+    driver: local
