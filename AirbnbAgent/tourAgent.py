@@ -67,35 +67,31 @@ llm = ChatGroq(
 
 async def airbnbAgent(state):
     if not _NPX_AVAILABLE:
-        return {"knowledge": ["⚠️ Airbnb search is unavailable because Node.js/npx is not functional on this system. Please install Node.js natively (e.g., `brew install node@20`) to enable this feature."]}
+        return {"knowledge": ["⚠️ Airbnb search is unavailable because Node.js/npx is not functional on this system."]}
 
-    # Get the current Streamlit context
     ctx = get_script_run_ctx()
 
     server_params = StdioServerParameters(
-            command= "npx",
-            args= [
+            command="npx",
+            args=[
                 "-y",
                 "@openbnb/mcp-server-airbnb",
                 "--ignore-robots-txt"
             ],
         )
-    
-    
-    async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                print("Initializing connection...")
-                await session.initialize()
 
-                # Get tools
-                print("Loading tools...")
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                print("Initializing Airbnb MCP connection...")
+                await session.initialize()
+                print("Loading Airbnb tools...")
                 tools = await load_mcp_tools(session)
-                
-                
+
                 agent = create_agent(
                     model=llm,
                     tools=tools,
-                    system_prompt = (
+                    system_prompt=(
                         """
                         **ADVANCED HOTEL SEARCH FORMAT**
 
@@ -117,10 +113,10 @@ async def airbnbAgent(state):
                         | 🔗 Booking | [URL] |
                         | 📞 Contact | [phone] • [website] |
 
-                        **Amenities:** [pool/gym/spa, dining, transport, business, pets, WiFi, services]  
+                        **Amenities:** [pool/gym/spa, dining, transport, business, pets, WiFi, services]
                         **Booking:** Check-in [time], Check-out [time], Cancellation [policy], Payment [methods], Breakfast [info], Parking [info], Extra Beds [policy]
 
-                        **Match Analysis:** Budget [fit], Amenities [X/Y matched], Location [score], Guest Reviews [highlights]  
+                        **MatchAnalysis:** Budget [fit], Amenities [X/Y matched], Location [score], Guest Reviews [highlights]
                         **Recommendations:** Best for [use case], Offers [promos], Tips [advice]
 
                         -- repeat per hotel --
@@ -142,20 +138,20 @@ async def airbnbAgent(state):
                 )
 
                 start_time = time.time()
-    
+
                 with st.spinner("Airbnb Agent Node in Progress…", show_time=True):
                     response = await agent.ainvoke({"messages": [{"role": "user", "content": state['topic']}]})
 
                 ai_content = response["messages"][-1].content
-
                 end_time = time.time()
-                airbnb_time = end_time - start_time
-                
-                # with st.chat_message("Agent"):
-                #     st.markdown(f"**✅ AirBnb Agent Time :** {airbnb_time:.2f} seconds\n")
-                
+                print(f"✅ Airbnb Agent completed in {end_time - start_time:.2f}s")
+
                 return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
-                
+
+    except Exception as e:
+        print(f"⚠️ Airbnb MCP failed: {type(e).__name__}: {e}")
+        return {"knowledge": [f"⚠️ Airbnb search failed ({type(e).__name__}: {e}). This feature requires full subprocess support and may not work on Streamlit Cloud."]}
+
 
 
 def extract_weather(data: dict) -> str:

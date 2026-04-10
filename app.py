@@ -106,10 +106,7 @@ if _pk and _sk:
             host="https://us.cloud.langfuse.com"
         )
         langfuse = get_client()
-        if langfuse.auth_check():
-            _log("✅ Langfuse authenticated successfully")
-        else:
-            _log("⚠️ Langfuse auth check failed — keys may be expired or incorrect")
+        _log("✅ Langfuse client initialized (auth deferred to background)")
     except Exception as e:
         _log(f"⚠️ Langfuse connection failed: {type(e).__name__}. Continuing without tracing.")
         langfuse = None
@@ -133,21 +130,6 @@ st.set_page_config(page_title="ambideXtrous",
                    page_icon=":bridge_at_night:",
                    layout="centered")
 
-# ── Langfuse: graceful init (won't crash in Docker without secrets) ───
-try:
-    Langfuse(
-        public_key=st.secrets.get("LANGFUSE_PUBLIC_KEY"),
-        secret_key=st.secrets.get("LANGFUSE_SECRET_KEY"),
-        host="https://us.cloud.langfuse.com"
-    )
-    langfuse = get_client()
-    if langfuse.auth_check():
-        print("Langfuse client is authenticated and ready!")
-    else:
-        print("Langfuse: Authentication failed. Langfuse disabled.")
-except Exception as e:
-    print(f"Langfuse: Not configured or unreachable ({e}). Continuing without tracing.")
-    langfuse = None
 
 torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)]
 
