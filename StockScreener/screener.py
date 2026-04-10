@@ -587,8 +587,8 @@ def LowDebtCompanies(stock_list):
     return pd.DataFrame()
 
 
-def BearishEngulfingStrong(stock_list):
-    """Screener: Bearish Engulfing pattern with strong volume"""
+def BullishEngulfingStrong(stock_list):
+    """Screener: Bullish Engulfing pattern with strong volume"""
     results = []
     total = len(stock_list)
     progress = st.progress(0)
@@ -601,19 +601,19 @@ def BearishEngulfingStrong(stock_list):
             if len(df) < 3:
                 continue
 
-            # Check last 2 candles for bearish engulfing
+            # Check last 2 candles for bullish engulfing
             prev = df.iloc[-2]
             curr = df.iloc[-1]
 
-            # Bearish engulfing: prev green, curr red, curr body engulfs prev body
-            prev_bullish = prev['Close'] > prev['Open']
-            curr_bearish = curr['Close'] < curr['Open']
+            # Bullish engulfing: prev red, curr green, curr body engulfs prev body
+            prev_bearish = prev['Close'] < prev['Open']
+            curr_bullish = curr['Close'] > curr['Open']
             curr_body = abs(curr['Close'] - curr['Open'])
             prev_body = abs(prev['Close'] - prev['Open'])
 
-            is_engulfing = (curr_bearish and prev_bullish and
-                           curr['Open'] >= prev['Close'] and
-                           curr['Close'] <= prev['Open'] and
+            is_engulfing = (curr_bullish and prev_bearish and
+                           curr['Open'] <= prev['Close'] and
+                           curr['Close'] >= prev['Open'] and
                            curr_body > prev_body)
 
             # Strong volume: today's volume > 1.5x average
@@ -1718,11 +1718,11 @@ def StockScan():
         st.session_state.analysis_stockList = []
 
     # ─── Screener Tabs ────────────────────────────────────────────────
-    tab_vol, tab_eps, tab_debt, tab_bear, tab_profit, tab_analysis = st.tabs([
+    tab_vol, tab_eps, tab_debt, tab_bull, tab_profit, tab_analysis = st.tabs([
         "📈 Volume Breakout",
         "💰 Highest EPS",
         "🏦 Low Debt Companies",
-        "📉 Bearish Engulfing",
+        "📈 Bullish Engulfing",
         "🚀 Profit Jump 200%+",
         "📋 Stocks Analysis"
     ])
@@ -1782,13 +1782,13 @@ def StockScan():
             st.session_state.debt_list = LowDebtCompanies(df500)
         _render_df_analysis(st.session_state.get('debt_list'), 'debt')
 
-    # ── Tab 4: Bearish Engulfing ──────────────────────────────────────
-    with tab_bear:
-        st.title("📉 Bearish Engulfing Screener")
-        st.caption("Detects bearish engulfing candlestick pattern with volume > 1.5x average")
-        if st.button("Run Scan", key='bearish_run'):
-            st.session_state.bearish_list = BearishEngulfingStrong(df500)
-        _render_df_analysis(st.session_state.get('bearish_list'), 'bearish')
+    # ── Tab 4: Bullish Engulfing ──────────────────────────────────────
+    with tab_bull:
+        st.title("📈 Bullish Engulfing Screener")
+        st.caption("Detects bullish engulfing candlestick pattern with volume > 1.5x average — a potential buy signal")
+        if st.button("Run Scan", key='bullish_run'):
+            st.session_state.bullish_list = BullishEngulfingStrong(df500)
+        _render_df_analysis(st.session_state.get('bullish_list'), 'bullish')
 
     # ── Tab 5: Profit Jump 200%+ ──────────────────────────────────────
     with tab_profit:
