@@ -39,7 +39,7 @@ COPY requirements.txt .
 # Use CPU-only torch to avoid NVIDIA CUDA bloat
 RUN /uv/bin/uv pip install --no-cache torch --index-url https://download.pytorch.org/whl/cpu && \
     /uv/bin/uv pip install --no-cache torchvision --index-url https://download.pytorch.org/whl/cpu && \
-    /uv/bin/uv pip install --no-cache -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+    /uv/bin/uv pip install --no-cache -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
 
 # ==============================================================================
 # MODEL DOWNLOAD STAGE - Pre-download all ML models
@@ -106,8 +106,8 @@ COPY . .
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app && \
-    mkdir -p /app/.cache/huggingface && \
-    chown -R appuser:appuser /app/.cache
+    mkdir -p /app/.cache/huggingface /app/data && \
+    chown -R appuser:appuser /app/.cache /app/data
 
 USER appuser
 

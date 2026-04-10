@@ -6,9 +6,6 @@ services:
     container_name: streamlit-ai-portfolio
     ports:
       - "8051:8051"
-    volumes:
-      # Only mount SQLite data to persist across container recreates
-      - sqlite-data:/app
     environment:
       - PYTHONUNBUFFERED=true
       - TRANSFORMERS_CACHE=/app/.cache/huggingface
@@ -22,7 +19,3 @@ services:
       retries: 3
       start_period: 60s
     restart: unless-stopped
-
-volumes:
-  sqlite-data:
-    driver: local

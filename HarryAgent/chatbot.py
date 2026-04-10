@@ -1,5 +1,6 @@
 import streamlit as st
 from HarryAgent.HpAgent import GraphBuild
+import os
 import sqlite3
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.runnables import RunnableConfig
@@ -12,8 +13,10 @@ try:
 except Exception:
     langfuse_handler = None
 
+# Ensure data directory exists
+os.makedirs("/app/data", exist_ok=True)
 
-conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
+conn = sqlite3.connect("/app/data/checkpoints.sqlite", check_same_thread=False)
 checkpointer = SqliteSaver(conn)
 
 app = GraphBuild(checkpointer)
