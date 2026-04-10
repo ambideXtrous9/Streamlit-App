@@ -7,6 +7,7 @@ import streamlit as st
 import os
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_core.tools import tool
+from typing import Any
 from langgraph.graph import StateGraph, END, START
 from typing import Annotated
 from langchain_core.messages import AnyMessage
@@ -19,21 +20,53 @@ from langfuse.langchain import CallbackHandler
 import time
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 import asyncio
-
-# Prepend your uploaded Node 20 bin folder to PATH
-NODE_BIN = os.path.abspath("nodev20/bin")
-os.environ["PATH"] = f"{NODE_BIN}:{os.environ['PATH']}"
-
+import sys
 import subprocess
+import platform
+import json
 
-# Verify Node.js/npx is actually functional at import time
-_NPX_AVAILABLE = False
-try:
-    subprocess.run(["node", "-v"], check=True, capture_output=True, timeout=5)
-    subprocess.run(["npx", "--version"], check=True, capture_output=True, timeout=5)
-    _NPX_AVAILABLE = True
-except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-    print("⚠️ Node.js/npx not functional — Airbnb agent will be disabled")
+# ── Node.js availability check ─────────────────────────────────────
+# - Linux (Docker, Streamlit Cloud): use bundled nodev20
+# - macOS: use system Node.js (brew/nvm) — nodev20 is Linux-only
+_IS_LINUX = sys.platform.startswith("linux")
+
+def _check_node():
+    """Check if node/npx works."""
+    for cmd in (["node", "-v"], ["npx", "--version"]):
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=5)
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+    return True
+
+# Fast path: already available
+_NPX_AVAILABLE = _check_node()
+
+# Fallback: install Node.js via apt on Linux (Streamlit Cloud, Docker)
+if not _NPX_AVAILABLE and _IS_LINUX:
+    print("⚠️ Node.js not found, installing via apt-get...")
+    try:
+        r1 = subprocess.run(
+            ["apt-get", "update", "-qq"],
+            check=False, capture_output=True, timeout=120
+        )
+        print(f"  apt-get update: rc={r1.returncode}")
+        r2 = subprocess.run(
+            ["apt-get", "install", "-y", "-qq", "nodejs", "npm"],
+            check=False, capture_output=True, timeout=180
+        )
+        print(f"  apt-get install nodejs npm: rc={r2.returncode}")
+        if r2.returncode != 0:
+            err = r2.stderr.decode()[:500]
+            print(f"  apt-get stderr: {err}")
+        _NPX_AVAILABLE = _check_node()
+    except Exception as e:
+        print(f"apt-get fallback error: {e}")
+
+if not _NPX_AVAILABLE:
+    print("⚠️ Airbnb MCP requires Node.js. Install it to enable this feature.")
+else:
+    print("✅ Node.js/npx available — Airbnb MCP enabled")
 
 # Langfuse handler: graceful if not configured
 try:
@@ -50,7 +83,7 @@ class ArticleResponse(TypedDict):
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 
-model_name = "moonshotai/kimi-k2-instruct" #"qwen/qwen3-32b" #
+model_name = "llama-3.3-70b-versatile"
 temperature = 0.0
 
 
@@ -66,8 +99,12 @@ llm = ChatGroq(
 
 
 async def airbnbAgent(state):
+    print(f"🏠 Airbnb Agent starting for: {state.get('topic', 'unknown')}")
+    
     if not _NPX_AVAILABLE:
-        return {"knowledge": ["⚠️ Airbnb search is unavailable because Node.js/npx is not functional on this system."]}
+        msg = "⚠️ Airbnb search is unavailable because Node.js/npx is not functional on this system."
+        print(f"⚠️ {msg}")
+        return {"knowledge": [msg]}
 
     ctx = get_script_run_ctx()
 
@@ -81,76 +118,96 @@ async def airbnbAgent(state):
         )
 
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                print("Initializing Airbnb MCP connection...")
-                await session.initialize()
-                print("Loading Airbnb tools...")
-                tools = await load_mcp_tools(session)
+        # Streamlit wraps sys.stderr with a custom object that lacks fileno().
+        # MCP's stdio_client needs a real fd for subprocess creation.
+        _saved_stderr = sys.stderr
+        sys.stderr = sys.__stderr__
+        try:
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    print("Initializing Airbnb MCP connection...")
+                    await session.initialize()
+                    print("Loading Airbnb tools...")
+                    tools = await load_mcp_tools(session)
 
-                agent = create_agent(
-                    model=llm,
-                    tools=tools,
-                    system_prompt=(
-                        """
-                        **ADVANCED HOTEL SEARCH FORMAT**
+                    agent = create_agent(
+                        model=llm,
+                        tools=tools,
+                        system_prompt=(
+                            """
+                            **ADVANCED HOTEL SEARCH FORMAT**
 
-                        ## 🎯 Search Summary
-                        - **Location:** [location] | **Dates:** [checkin] → [checkout]
-                        - **Guests:** [adults]A, [children]C, [infants]I, [pets]P
-                        - **Room:** [room type] | **Stars:** [rating] | **Amenities:** [amenities]
-                        - **Results:** [number] hotels
+                            ## 🎯 Search Summary
+                            - **Location:** [location] | **Dates:** [checkin] → [checkout]
+                            - **Guests:** [adults]A, [children]C, [infants]I, [pets]P
+                            - **Room:** [room type] | **Stars:** [rating] | **Amenities:** [amenities]
+                            - **Results:** [number] hotels
 
-                        ## 🏨 Hotel Listings
-                        ### [Hotel Name]
-                        | Detail | Info |
-                        |--------|------|
-                        | ⭐ Rating | [rating]/5 ([reviews]) |
-                        | 📍 Address | [full address] |
-                        | 💰 Rate | $[price]/night (+$[tax]) |
-                        | 🏠 Rooms | [categories] |
-                        | 📏 Distance | [city center] • [airport] |
-                        | 🔗 Booking | [URL] |
-                        | 📞 Contact | [phone] • [website] |
+                            ## 🏨 Hotel Listings
+                            ### [Hotel Name]
+                            | Detail | Info |
+                            |--------|------|
+                            | ⭐ Rating | [rating]/5 ([reviews]) |
+                            | 📍 Address | [full address] |
+                            | 💰 Rate | $[price]/night (+$[tax]) |
+                            | 🏠 Rooms | [categories] |
+                            | 📏 Distance | [city center] • [airport] |
+                            | 🔗 Booking | [URL] |
+                            | 📞 Contact | [phone] • [website] |
 
-                        **Amenities:** [pool/gym/spa, dining, transport, business, pets, WiFi, services]
-                        **Booking:** Check-in [time], Check-out [time], Cancellation [policy], Payment [methods], Breakfast [info], Parking [info], Extra Beds [policy]
+                            **Amenities:** [pool/gym/spa, dining, transport, business, pets, WiFi, services]
+                            **Booking:** Check-in [time], Check-out [time], Cancellation [policy], Payment [methods], Breakfast [info], Parking [info], Extra Beds [policy]
 
-                        **MatchAnalysis:** Budget [fit], Amenities [X/Y matched], Location [score], Guest Reviews [highlights]
-                        **Recommendations:** Best for [use case], Offers [promos], Tips [advice]
+                            **MatchAnalysis:** Budget [fit], Amenities [X/Y matched], Location [score], Guest Reviews [highlights]
+                            **Recommendations:** Best for [use case], Offers [promos], Tips [advice]
 
-                        -- repeat per hotel --
+                            -- repeat per hotel --
 
-                        ## 📈 Comparison
-                        | Hotel | Rating | Price | Features | Link |
-                        |-------|--------|-------|----------|------|
-                        | [H1] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
-                        | [H2] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
+                            ## 📈 Comparison
+                            | Hotel | Rating | Price | Features | Link |
+                            |-------|--------|-------|----------|------|
+                            | [H1] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
+                            | [H2] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
 
-                        ## 🏆 Final Picks
-                        - **Best Value:** [hotel + reason]
-                        - **Luxury:** [hotel + features]
-                        - **Budget:** [hotel + savings]
-                        - **Location:** [hotel + benefit]
-                        - **Amenities:** [hotel + standout]
-                        """
+                            ## 🏆 Final Picks
+                            - **Best Value:** [hotel + reason]
+                            - **Luxury:** [hotel + features]
+                            - **Budget:** [hotel + savings]
+                            - **Location:** [hotel + benefit]
+                            - **Amenities:** [hotel + standout]
+                            """
+                        )
                     )
-                )
 
-                start_time = time.time()
+                    start_time = time.time()
 
-                with st.spinner("Airbnb Agent Node in Progress…", show_time=True):
-                    response = await agent.ainvoke({"messages": [{"role": "user", "content": state['topic']}]})
+                    with st.spinner("Airbnb Agent Node in Progress…", show_time=True):
+                        response = await agent.ainvoke(
+                            {"messages": [{"role": "user", "content": state['topic']}]},
+                            config={"tags": ["airbnb_search_debug"]}
+                        )
 
-                ai_content = response["messages"][-1].content
-                end_time = time.time()
-                print(f"✅ Airbnb Agent completed in {end_time - start_time:.2f}s")
+                    # Debug: show tool calls
+                    for msg in response["messages"]:
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            print(f"🔧 Agent called tools: {[tc['name'] for tc in msg.tool_calls]}")
+                            for tc in msg.tool_calls:
+                                print(f"   → {tc['name']}: {json.dumps(tc['args'], indent=2)[:500]}")
+                        elif hasattr(msg, 'content') and msg.content:
+                            content_preview = str(msg.content)[:200]
+                            print(f"💬 LLM response: {content_preview}")
 
-                return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
+                    ai_content = response["messages"][-1].content
+                    end_time = time.time()
+                    print(f"✅ Airbnb Agent completed in {end_time - start_time:.2f}s")
+
+                    return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
+        finally:
+            sys.stderr = _saved_stderr
 
     except Exception as e:
         print(f"⚠️ Airbnb MCP failed: {type(e).__name__}: {e}")
-        return {"knowledge": [f"⚠️ Airbnb search failed ({type(e).__name__}: {e}). This feature requires full subprocess support and may not work on Streamlit Cloud."]}
+        return {"knowledge": [f"⚠️ Airbnb search failed ({type(e).__name__}: {e})."]}
 
 
 
@@ -200,18 +257,16 @@ def extract_weather(data: dict) -> str:
 
 
 
-@tool("WeatherForecast")
+from pydantic import BaseModel, Field
+
+class WeatherArgs(BaseModel):
+    location: str = Field(description="City name or coordinates")
+    days: Any = Field(default=3, description="Number of days to forecast (integer, e.g. 3)")
+
+@tool("WeatherForecast", args_schema=WeatherArgs)
 def get_forecast(location: str, days: int = 3):
-    """
-    Fetch weather forecast for a given location using WeatherAPI.
-
-    Args:
-        location (str): City name or coordinates (e.g., "London" or "51.5072,-0.1276").
-        days (int): Number of days to forecast (default = 3).
-
-    Returns:
-        dict: Forecast data if successful, None otherwise.
-    """
+    """Fetch weather forecast for a given location using WeatherAPI."""
+    days = int(days)  # Ensure int even if LLM passes string
     print("WeatherForecast tool")
     API_KEY = st.secrets["WEATHER_API_KEY"]
     
@@ -410,6 +465,11 @@ def sync_app(topic, thread_id, callbacks):
         full_text = ""
 
         async for event in app.astream_events(input={"topic": topic}, config=config, version="v2"):
+            # Debug: log node completion
+            if event["event"] == "on_chain_end" and event.get("metadata", {}).get("langgraph_node"):
+                node = event["metadata"]["langgraph_node"]
+                print(f"✅ Node '{node}' completed")
+
             if (
                 event["event"] == "on_chat_model_stream"
                 and event["metadata"].get("langgraph_node") == "tourAgent"
