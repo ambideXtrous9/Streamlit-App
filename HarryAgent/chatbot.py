@@ -13,10 +13,11 @@ try:
 except Exception:
     langfuse_handler = None
 
-# Ensure data directory exists
-os.makedirs("/app/data", exist_ok=True)
+# Use project root directory for compatibility (Docker & cloud deployment)
+project_root = os.path.dirname(os.path.dirname(__file__))
+db_path = os.path.join(project_root, "checkpoints.sqlite")
 
-conn = sqlite3.connect("/app/data/checkpoints.sqlite", check_same_thread=False)
+conn = sqlite3.connect(db_path, check_same_thread=False)
 checkpointer = SqliteSaver(conn)
 
 app = GraphBuild(checkpointer)
