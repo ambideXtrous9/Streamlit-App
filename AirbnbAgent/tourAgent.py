@@ -423,7 +423,7 @@ async def _run_app_async(topic: str, thread_id: str, callbacks: list):
                 full_text += chunk
                 elapsed = time.time() - start_time
                 status_placeholder.caption(f"{current_label} ({elapsed:.1f}s)")
-                text_placeholder.markdown(full_text)
+                text_placeholder.markdown(full_text, unsafe_allow_html=True)
                 await asyncio.sleep(0.01)
 
         status_placeholder.empty()
@@ -452,6 +452,10 @@ def tourChat():
     session_key = "tour_agent_messages"
     if session_key not in st.session_state:
         st.session_state[session_key] = []
+
+    for message in st.session_state[session_key]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"], unsafe_allow_html=True)
 
     selected_prompt = None
     if not st.session_state[session_key]:

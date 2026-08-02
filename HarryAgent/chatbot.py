@@ -35,7 +35,7 @@ def ChatBot():
 
     for message in st.session_state[session_key]:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            st.markdown(message["content"], unsafe_allow_html=True)
 
     # Suggestion buttons when history is empty
     selected_prompt = None
@@ -135,7 +135,7 @@ def ChatBot():
                             # Stream tokens during article composition
                             if node in ["writer", "mythologist", "researcher"] or not node:
                                 live_stream_text += content
-                                text_placeholder.markdown(live_stream_text)
+                                text_placeholder.markdown(live_stream_text, unsafe_allow_html=True)
                                 await asyncio.sleep(0.005)
 
                 status_placeholder.empty()
@@ -151,5 +151,5 @@ def ChatBot():
 
             # Run stream directly on Streamlit thread with full ScriptRunContext
             final_content = asyncio.run(_stream_hp_agent())
-            text_placeholder.markdown(final_content)
+            text_placeholder.markdown(final_content, unsafe_allow_html=True)
             st.session_state[session_key].append({"role": "assistant", "content": final_content})
