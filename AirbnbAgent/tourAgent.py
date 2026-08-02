@@ -1,31 +1,33 @@
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import InMemorySaver
 import streamlit as st
 import os
-from langchain_core.tools import tool
-from typing import Any
-from langgraph.graph import StateGraph, END, START
-from typing import Annotated
-from langchain_core.messages import AnyMessage
-from langgraph.graph.message import add_messages
-from typing_extensions import TypedDict
-from langchain_core.messages import SystemMessage, HumanMessage
+import re
+import datetime
 import requests
+import json
 import uuid
-from langfuse.langchain import CallbackHandler
 import time
 import asyncio
 import sys
 import subprocess
-import os
+import concurrent.futures
+from typing import Any, Annotated, List, Dict
+from typing_extensions import TypedDict
+from langchain_core.tools import tool, Tool
+from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
+from langgraph.graph import StateGraph, END, START
+from langgraph.graph.message import add_messages
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 from pydantic import BaseModel, Field
+from langfuse.langchain import CallbackHandler
 
 # ── Node.js availability check ─────────────────────────────────────
-def _check_node():
+def _check_node() -> bool:
     for cmd in (["node", "-v"], ["npx", "--version"]):
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=5)
@@ -36,8 +38,7 @@ def _check_node():
 _NPX_AVAILABLE = _check_node()
 
 if not _NPX_AVAILABLE:
-    import sys as _sys
-    if _sys.platform.startswith("linux"):
+    if sys.platform.startswith("linux"):
         print("⚠️ Node.js not found, installing via apt-get...")
         try:
             subprocess.run(["apt-get", "update", "-qq"], check=False, capture_output=True, timeout=120)
@@ -49,8 +50,11 @@ if not _NPX_AVAILABLE:
 if not _NPX_AVAILABLE:
     print("⚠️ Airbnb MCP requires Node.js/npx. Install it to enable this feature.")
 else:
-    node_version = subprocess.run(["node", "-v"], capture_output=True, text=True, timeout=5)
-    print(f"✅ Node.js {node_version.stdout.strip()} available — Airbnb MCP enabled")
+    try:
+        node_version = subprocess.run(["node", "-v"], capture_output=True, text=True, timeout=5)
+        print(f"✅ Node.js {node_version.stdout.strip()} available — Airbnb MCP enabled")
+    except Exception:
+        print("✅ Node.js available — Airbnb MCP enabled")
 
 # Langfuse handler
 try:
@@ -65,114 +69,138 @@ class ArticleResponse(TypedDict):
     knowledge: Annotated[list[AnyMessage], add_messages]
 
 
-os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+if hasattr(st, "secrets"):
+    for sec_key in ["GROQ_API_KEY", "WEATHER_API_KEY", "OPENROUTER_API_KEY", "QDRANT_API_KEY", "COHERE_API_KEY"]:
+        if sec_key in st.secrets:
+            os.environ[sec_key] = st.secrets[sec_key]
 
-model_name = "llama-3.3-70b-versatile"
-temperature = 0.0
+primary_model = "deepseek-v4-flash:cloud"
+fallback_model = "gpt-oss:20b-cloud"
 
-llm = ChatGroq(
-    model_name=model_name,
-    temperature=temperature,
-    seed=42,
-    tags=["TourAgentExpert"]
-)
+try:
+    ollama_primary = ChatOllama(model=primary_model, temperature=0.0)
+    ollama_fallback = ChatOllama(model=fallback_model, temperature=0.0)
+    groq_fallback = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.0, max_retries=5)
+    llm = ollama_primary.with_fallbacks([ollama_fallback, groq_fallback])
+except Exception as ex:
+    print(f"Ollama initialization note: {ex}")
+    llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.0, max_retries=5)
+
+
+# ── Smart Query Parsing Helper ─────────────────────────────────────
+def parse_trip_query(query: str):
+    """
+    Parses user query to extract location name, checkin date, checkout date, and stay duration.
+    Defaults to tomorrow for checkin if not explicitly specified.
+    """
+    today = datetime.date.today()
+    checkin = today + datetime.timedelta(days=1)
+    
+    # Extract duration in days if mentioned (e.g. '3 days', '5 day')
+    days_match = re.search(r'(\d+)\s*days?', query, re.IGNORECASE)
+    duration = int(days_match.group(1)) if days_match else 3
+    checkout = checkin + datetime.timedelta(days=duration)
+
+    # Heuristic for location extraction
+    stop_words = r'(?i)\b(\d+\s*days?|trip|itinerary|to|from|tomorrow|next|week|for|in|stay|hotel|airbnb|booking|cheap|best)\b'
+    cleaned = re.sub(stop_words, ' ', query)
+    words = [w.strip().capitalize() for w in cleaned.split() if len(w.strip()) > 2]
+    location = ' '.join(words) if words else 'Munnar'
+
+    return location, checkin.strftime('%Y-%m-%d'), checkout.strftime('%Y-%m-%d'), duration
 
 
 # ── Airbnb Agent ──────────────────────────────────────────────────
-async def airbnbAgent(state):
-    print(f"🏠 Airbnb Agent: {state.get('topic', 'unknown')}")
+async def airbnbAgent(state: Dict[str, Any]):
+    topic = state.get("topic", "")
+    location, checkin_str, checkout_str, duration = parse_trip_query(topic)
+    print(f"🏠 Airbnb Agent searching: location='{location}', checkin='{checkin_str}', checkout='{checkout_str}'")
     start = time.time()
 
     if not _NPX_AVAILABLE:
-        ai_content = "⚠️ Airbnb unavailable — Node.js/npx not installed."
+        ai_content = "⚠️ Airbnb search unavailable — Node.js/npx runtime not available."
     else:
         try:
+            mcp_env = dict(os.environ)
+            mcp_env["AIRBNB_BASE_URL"] = "https://www.airbnb.co.in"
+
             server_params = StdioServerParameters(
                 command="npx",
                 args=["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"],
+                env=mcp_env,
             )
 
-            # Fix: pass a real file to stdio_client's errlog to avoid fileno error
             with open(os.devnull, "w") as err_log:
                 async with stdio_client(server_params, errlog=err_log) as (read, write):
                     async with ClientSession(read, write) as session:
-                        print("Initializing connection...")
-                        await session.initialize()
+                        print("Initializing MCP connection...")
+                        await asyncio.wait_for(session.initialize(), timeout=20)
 
-                        print("Loading tools...")
+                        orig_call_tool = session.call_tool
+
+                        async def custom_call_tool(name, arguments=None, **kwargs):
+                            result = await orig_call_tool(name, arguments=arguments, **kwargs)
+                            if name == "airbnb_search" and hasattr(result, "content") and result.content:
+                                for c in result.content:
+                                    if hasattr(c, "text") and c.text:
+                                        try:
+                                            data = json.loads(c.text)
+                                            if isinstance(data, dict) and "searchResults" in data and isinstance(data["searchResults"], list):
+                                                data["searchResults"] = data["searchResults"][:3]
+                                                data.pop("paginationInfo", None)
+                                                c.text = json.dumps(data)
+                                        except Exception as ex:
+                                            print(f"JSON truncation note: {ex}")
+                            return result
+
+                        session.call_tool = custom_call_tool
+
+                        print("Loading MCP tools...")
                         tools = await load_mcp_tools(session)
                         print(f"Loaded {len(tools)} MCP tools: {[t.name for t in tools]}")
 
+                        class CleanAirbnbSearch(BaseModel):
+                            location: str = Field(description="Location to search for (city, state, etc.)")
+                            checkin: str = Field(default=checkin_str, description="Check-in date (YYYY-MM-DD)")
+                            checkout: str = Field(default=checkout_str, description="Check-out date (YYYY-MM-DD)")
+                            adults: float = Field(default=2, description="Number of adults")
+                            children: float = Field(default=0, description="Number of children")
+
                         for t in tools:
-                            print(f"Tool: {t.name}, args_schema: {t.args_schema}")
+                            if t.name == "airbnb_search":
+                                t.args_schema = CleanAirbnbSearch
+
+                        prompt_text = (
+                            f"Extracted Destination: {location}\n"
+                            f"Check-in Date: {checkin_str}\n"
+                            f"Check-out Date: {checkout_str}\n"
+                            f"Instructions:\n"
+                            f"1. Search for available stays in '{location}' from {checkin_str} to {checkout_str} using airbnb_search.\n"
+                            f"2. Summarize top stays with Name, Rating, Price/Night, Address, Key Amenities, and Direct Booking URL."
+                        )
 
                         agent = create_react_agent(
                             llm,
                             tools,
-                            prompt=(
-                                """
-                                **ADVANCED HOTEL SEARCH FORMAT**
-
-                                ## 🎯 Search Summary
-                                - **Location:** [location] | **Dates:** [checkin] → [checkout]
-                                - **Guests:** [adults]A, [children]C, [infants]I, [pets]P
-                                - **Room:** [room type] | **Stars:** [rating] | **Amenities:** [amenities]
-                                - **Results:** [number] hotels
-
-                                ## 🏨 Hotel Listings
-                                ### [Hotel Name]
-                                | Detail | Info |
-                                |--------|------|
-                                | ⭐ Rating | [rating]/5 ([reviews]) |
-                                | 📍 Address | [full address] |
-                                | 💰 Rate | $[price]/night (+$[tax]) |
-                                | 🏠 Rooms | [categories] |
-                                | 📏 Distance | [city center] • [airport] |
-                                | 🔗 Booking | [URL] |
-                                | 📞 Contact | [phone] • [website] |
-
-                                **Amenities:** [pool/gym/spa, dining, transport, business, pets, WiFi, services]
-                                **Booking:** Check-in [time], Check-out [time], Cancellation [policy], Payment [methods], Breakfast [info], Parking [info], Extra Beds [policy]
-
-                                **Match Analysis:** Budget [fit], Amenities [X/Y matched], Location [score], Guest Reviews [highlights]
-                                **Recommendations:** Best for [use case], Offers [promos], Tips [advice]
-
-                                -- repeat per hotel --
-
-                                ## 📈 Comparison
-                                | Hotel | Rating | Price | Features | Link |
-                                |-------|--------|-------|----------|------|
-                                | [H1] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
-                                | [H2] | [rating]⭐ | $[price] | [2 highlights] | [URL] |
-
-                                ## 🏆 Final Picks
-                                - **Best Value:** [hotel + reason]
-                                - **Luxury:** [hotel + features]
-                                - **Budget:** [hotel + savings]
-                                - **Location:** [hotel + benefit]
-                                - **Amenities:** [hotel + standout]
-                                """
-                            ),
+                            prompt=prompt_text,
                         )
 
-                        print(f"Invoking agent with query: {state['topic']}")
-                        response = await agent.ainvoke({"messages": [{"role": "user", "content": state['topic']}]})
-
-                        # Debug: print ALL messages to see tool calls and results
-                        for msg in response.get("messages", []):
-                            if hasattr(msg, "type"):
-                                print(f"  [{msg.type}] {msg.content[:500]}")
+                        print(f"Invoking Airbnb react agent for query: {topic}")
+                        response = await asyncio.wait_for(
+                            agent.ainvoke({"messages": [{"role": "user", "content": topic}]}),
+                            timeout=45
+                        )
 
                         ai_content = response["messages"][-1].content
-                        print(f"Final agent response: {ai_content[:1000]}")
+                        print(f"Final Airbnb agent response: {ai_content[:500]}")
         except Exception as e:
-            ai_content = f"⚠️ Airbnb agent failed: {type(e).__name__}: {e}"
+            print(f"⚠️ Airbnb Agent error ({type(e).__name__}): {e}")
+            ai_content = (
+                f"⚠️ Could not load live Airbnb listings for {location} ({checkin_str} to {checkout_str}).\n"
+                f"Note: Standard boutique homestays & mountain cottages are recommended for this destination."
+            )
 
-    print(f"✅ Airbnb Agent done in {time.time() - start:.2f}s")
-
-    with st.spinner("Airbnb Agent in Progress…", show_time=True):
-        pass
-
+    print(f"✅ Airbnb Agent completed in {time.time() - start:.2f}s")
     return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
 
 
@@ -218,7 +246,9 @@ def get_forecast(location: str, days: int = 3):
     """Fetch weather forecast for a given location using WeatherAPI."""
     days = int(days)
     print(f"🌤️ WeatherForecast tool: {location}, {days} days")
-    API_KEY = st.secrets["WEATHER_API_KEY"]
+    API_KEY = st.secrets.get("WEATHER_API_KEY", "")
+    if not API_KEY:
+        return "Weather API key missing."
     url = (
         f"http://api.weatherapi.com/v1/forecast.json"
         f"?key={API_KEY}&q={location}&days={days}&aqi=no&alerts=yes"
@@ -229,133 +259,112 @@ def get_forecast(location: str, days: int = 3):
         return extract_weather(response.json())
     except requests.RequestException as e:
         print(f"Error fetching forecast: {e}")
-        return None
+        return f"Weather forecast unavailable for {location}."
 
 
 # ── Weather Agent ─────────────────────────────────────────────────
-async def weatherAgent(state):
-    print("Weather Agent..")
+async def weatherAgent(state: Dict[str, Any]):
+    topic = state.get("topic", "")
+    location, _, _, duration = parse_trip_query(topic)
+    print(f"Weather Agent searching: location='{location}', days={duration}")
+    
     weather_agent = create_react_agent(
         llm,
         [get_forecast],
         prompt=(
             "You are a Weather Assistant.\n"
             "Use the **WeatherForecast tool** to fetch the forecast.\n"
-            "Generate a **Weather Report** strictly following this format:\n\n"
-            "## Weather Report for <Location> (Next <Days> Days)\n\n"
-            "**Current Conditions:** <Temp>°C, <Condition>\n\n"
-            "**Forecast Summary:**\n"
-            "- **<Date>:** <Condition>, <Max>/<Min>°C\n"
-            "(repeat for each day)\n\n"
-            "**Tour Recommendation:**\n"
-            "Based on weather, state if it's a good time to visit.\n"
-            "Give practical advice: clothing, precautions, activities."
+            "Generate a **Weather Report** with Current Conditions, Forecast Summary, and Tour Recommendation."
         ),
     )
 
     start = time.time()
-    with st.spinner("Weather Agent in Progress…", show_time=True):
-        result = weather_agent.invoke({"messages": [{"role": "user", "content": state['topic']}]})
-    ai_content = result["messages"][-1].content
-    print(f"✅ Weather Agent done in {time.time() - start:.2f}s")
+    try:
+        result = await asyncio.wait_for(
+            weather_agent.ainvoke({"messages": [{"role": "user", "content": topic}]}),
+            timeout=25
+        )
+        ai_content = result["messages"][-1].content
+    except Exception as e:
+        print(f"⚠️ Weather Agent LLM exception ({e}), executing direct tool fallback...")
+        try:
+            direct_report = get_forecast(location, days=duration)
+            ai_content = direct_report if direct_report else f"Weather report unavailable: {e}"
+        except Exception as ex:
+            ai_content = f"Weather report unavailable: {ex}"
+                
+    print(f"✅ Weather Agent completed in {time.time() - start:.2f}s")
     return {"knowledge": [f"[Info from Weather Search]\n{ai_content}\n\n"]}
 
 
 # ── Tour Agent (final summarizer) ─────────────────────────────────
 touragentprompt = """
-You are a Travel & Tour Guide Assistant. Suggest a tour plan based on the user query and the Airbnb and Weather reports.
+You are an expert Travel & Tour Guide Assistant. Create a comprehensive, beautiful Tour Guide Plan based on the user request and gathered reports.
 
-**Strictly follow the Markdown Output Format below.**
-
----
+Format the output strictly using GitHub Flavored Markdown:
 
 ## 🎯 Search Summary
-- **Location:** [location] | **Dates:** [checkin] → [checkout]
-- **Guests:** [adults]A, [children]C, [infants]I, [pets]P
-- **Room:** [room type] | **Stars:** [rating] | **Amenities:** [amenities]
-- **Results:** [number] hotels
+- **Location:** [Location] | **Dates:** [Check-in] → [Check-out]
+- **Guests:** 2 Adults | **Duration:** [Duration] Days
+- **Stays Found:** [Number] Stays
 
 ---
 
-## 🏨 Hotel Listings
-
-### [Hotel Name]
-| Detail | Info |
-|--------|------|
-| ⭐ Rating | [rating]/5 ([reviews]) |
-| 📍 Address | [full address] |
-| 💰 Rate | $[price]/night (+$[tax]) |
-| 🏠 Rooms | [categories] |
-| 📏 Distance | [city center] • [airport] |
-| 🔗 Booking | [URL] |
-| 📞 Contact | [phone] • [website] |
+## 🏨 Recommended Stays
+Format each stay into a clean Markdown table with:
+- Name & Booking URL
+- Star Rating & Review count
+- Price/Night (INR/USD)
+- Address/Neighborhood
+- Key Amenities
 
 ---
 
-### 🏆 Final Picks
-- **Best Value:** [hotel + reason]
-- **Luxury:** [hotel + features]
-- **Budget:** [hotel + savings]
-- **Location:** [hotel + benefit]
-- **Amenities:** [hotel + standout]
+## 🏆 Final Stay Recommendations
+- **Best Overall Value:** [Name + Reason]
+- **Luxury Pick:** [Name + Features]
+- **Budget Pick:** [Name + Savings]
 
 ---
 
-### 🌤️ Weather Summary
-- **Location:** [location]
-- **Duration:** [days] Days ([checkin] → [checkout])
-- **Current:** 🌡️ [current_temp]°C, [condition] | Feels like [feelslike]°C
-- **Humidity:** [humidity]% | **Wind:** [wind] kph | **Pressure:** [pressure] mb
+## 🌤️ Weather Forecast & Climate Guide
+- Summary of current conditions, temperature range, wind, and rain likelihood.
+- Day-by-day forecast table.
 
 ---
 
-### 📅 3-Day Forecast
-| Date       | Condition | 🌡️ Max Temp | 🌡️ Min Temp | 💧 Humidity | 💨 Max Wind |
-|------------|-----------|-------------|-------------|-------------|-------------|
-| [date1]    | [cond1]   | [max1]°C    | [min1]°C    | [hum1]%     | [wind1] kph |
-| [date2]    | [cond2]   | [max2]°C    | [min2]°C    | [hum2]%     | [wind2] kph |
-| [date3]    | [cond3]   | [max3]°C    | [min3]°C    | [hum3]%     | [wind3] kph |
-
----
-
-### 🧭 Travel & Stay Insights
-- **Clothing:** [clothing advice]
-- **Precautions:** [safety advice]
-- **Activities:** [indoor/outdoor suggestions]
-- **Stay Match:** Recommend [cozy apartments / mountain-view homes / family stays] based on forecast
-
----
-
-### 🏡 Stay Match with Weather
-- **If Rainy/Cloudy:** Cozy Airbnbs (like {PropertyX}) are recommended since you'll spend more time indoors. Look for ones with indoor seating, tea/coffee facilities, or scenic balconies to enjoy the misty views.
-- **If Sunny/Clear:** Open-view Airbnbs (like {PropertyY}) are better, offering outdoor seating and mountain/sunset views.
-- **If Mixed Weather:** Balanced stays (like {PropertyZ}) with both indoor comfort and outdoor access give flexibility.
-
-### 🌟 Alternative Travel Note
-{AlternativeAdvice}
----
-
+## 🧭 Day-by-Day Itinerary & Packing Advice
+- Recommended activities for Day 1, Day 2, Day 3 based on weather.
+- Clothing & essential travel items.
 """
 
 
-async def tourAgent(state):
-    context = f"Based on User Query : {state['topic']} \nanalyze below Reports on Airbnb and Weather: {state['knowledge']}"
-
+async def tourAgent(state: Dict[str, Any]):
+    context = f"User Query: {state['topic']}\n\nGathered Intelligence:\n{state['knowledge']}"
     start_time = time.time()
 
-    with st.spinner("Tour Agent in Progress…", show_time=True):
-        response = llm.invoke([
-            SystemMessage(content=touragentprompt),
-            HumanMessage(content=context)
-        ])
+    try:
+        response = await asyncio.wait_for(
+            llm.ainvoke([
+                SystemMessage(content=touragentprompt),
+                HumanMessage(content=context)
+            ]),
+            timeout=45
+        )
+        summary_content = response.content
+    except Exception as e:
+        print(f"⚠️ tourAgent LLM call exception: {e}")
+        knowledge_text = "\n\n".join([str(k) for k in state.get('knowledge', [])])
+        summary_content = (
+            f"## 🎯 Trip Summary for {state.get('topic', 'Your Trip')}\n\n"
+            f"{knowledge_text}"
+        )
 
-    end_time = time.time()
-    tour_time = end_time - start_time
-
-    return {"summary": response.content}
+    print(f"✅ Tour Agent synthesized final report in {time.time() - start_time:.2f}s")
+    return {"summary": summary_content}
 
 
-# ── Graph ─────────────────────────────────────────────────────────
+# ── LangGraph Pipeline ─────────────────────────────────────────────
 async_graph = StateGraph(ArticleResponse)
 async_graph.add_node("weatherAgent", weatherAgent)
 async_graph.add_node("airbnbAgent", airbnbAgent)
@@ -370,42 +379,69 @@ async_graph.add_edge("tourAgent", END)
 app = async_graph.compile(checkpointer=InMemorySaver())
 
 
-def sync_app(topic, thread_id, callbacks):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+# ── Thread-Safe Sync Wrapper for Streamlit ─────────────────────────
+async def _run_app_async(topic: str, thread_id: str, callbacks: list):
+    config = {
+        "configurable": {"thread_id": thread_id},
+        "callbacks": callbacks,
+        "run_name": "tour_agent",
+    }
 
-    async def run_app():
-        config = {
-            "configurable": {"thread_id": thread_id},
-            "callbacks": callbacks,
-            "run_name": "tour_agent",
-        }
-
-        message_box = st.chat_message("assistant")
-        text_placeholder = message_box.empty()
+    with st.chat_message("assistant"):
+        status_placeholder = st.empty()
+        text_placeholder = st.empty()
         full_text = ""
 
+        start_time = time.time()
+        current_label = "🚀 Processing Tour Guide Request..."
+        status_placeholder.caption(f"{current_label} (0.0s)")
+
         async for event in app.astream_events(input={"topic": topic}, config=config, version="v2"):
-            if event["event"] == "on_chain_end" and event.get("metadata", {}).get("langgraph_node"):
-                node = event["metadata"]["langgraph_node"]
+            event_type = event.get("event")
+            metadata = event.get("metadata", {})
+            node = metadata.get("langgraph_node")
+
+            if event_type == "on_chain_start" and node:
+                if node == "weatherAgent":
+                    current_label = "🌤️ Weather Agent checking forecast..."
+                elif node == "airbnbAgent":
+                    current_label = "🏠 Airbnb Agent searching stays..."
+                elif node == "tourAgent":
+                    current_label = "🧭 Tour Agent synthesizing final itinerary..."
+
+                elapsed = time.time() - start_time
+                status_placeholder.caption(f"{current_label} ({elapsed:.1f}s)")
+
+            if event_type == "on_chain_end" and node:
                 print(f"✅ Node '{node}' completed")
 
             if (
-                event["event"] == "on_chat_model_stream"
-                and event["metadata"].get("langgraph_node") == "tourAgent"
+                event_type == "on_chat_model_stream"
+                and node == "tourAgent"
             ):
                 chunk = event["data"]["chunk"].content
                 full_text += chunk
+                elapsed = time.time() - start_time
+                status_placeholder.caption(f"{current_label} ({elapsed:.1f}s)")
                 text_placeholder.markdown(full_text)
                 await asyncio.sleep(0.01)
 
-        return full_text
+        status_placeholder.empty()
 
+    return full_text
+
+
+def sync_app(topic: str, thread_id: str, callbacks: list):
     try:
-        result = loop.run_until_complete(run_app())
-        return result
-    finally:
-        loop.close()
+        running_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        running_loop = None
+
+    if running_loop and running_loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(lambda: asyncio.run(_run_app_async(topic, thread_id, callbacks))).result()
+    else:
+        return asyncio.run(_run_app_async(topic, thread_id, callbacks))
 
 
 def tourChat():
@@ -417,11 +453,25 @@ def tourChat():
     if session_key not in st.session_state:
         st.session_state[session_key] = []
 
-    for message in st.session_state[session_key]:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    selected_prompt = None
+    if not st.session_state[session_key]:
+        st.write("💡 **Suggested Travel Queries:**")
+        cols = st.columns(2)
+        suggestions = [
+            ("🌴 Munnar 3-Day Trip", "3 days trip to Munnar from tomorrow"),
+            ("⛰️ Manali Weekend Getaway", "4 days weekend getaway to Manali for 2 adults"),
+            ("🌊 Goa Beach Vacation", "3 days relaxing beach vacation in Goa with weather forecast"),
+            ("🏰 Jaipur Cultural Tour", "5 days heritage and culture tour in Jaipur starting next Monday")
+        ]
+        for idx, (label, prompt_text) in enumerate(suggestions):
+            with cols[idx % 2]:
+                if st.button(label, key=f"tour_sug_{idx}", use_container_width=True):
+                    selected_prompt = prompt_text
 
-    if prompt := st.chat_input("What is up?"):
+    user_input = st.chat_input("Ask about your trip (e.g. 3 days trip to Munnar from tomorrow)...")
+    prompt = selected_prompt or user_input
+
+    if prompt:
         st.chat_message("user").markdown(prompt)
         st.session_state[session_key].append({"role": "user", "content": prompt})
 

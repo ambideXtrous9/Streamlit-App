@@ -13,6 +13,7 @@ import base64
 def chart(ticker):
 
     prices = yf.Ticker(ticker).history(period="1y", interval="1d")
+    prices.columns = [col.lower() for col in prices.columns]
 
     indicators = [
         Candlesticks(colordn='red',colorup='green'),SMA(10),SMA(20), SMA(50), SMA(200), Volume(),
@@ -20,7 +21,7 @@ def chart(ticker):
         MACD(),
     ]
 
-    chart = Chart(prices=prices, title=ticker)
+    chart = Chart(prices=prices, title=ticker, normalize=True)
     chart.plot(indicators)
     x = chart.render(format='png')
     image = Image.open(io.BytesIO(x))

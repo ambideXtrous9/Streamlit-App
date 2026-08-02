@@ -36,6 +36,8 @@ langchain-community>=0.4.0
 langchain-huggingface>=0.1.0
 langchain-openai>=0.3.0
 langchain-groq>=0.2.0
+langchain-ollama>=1.1.0
+ollama>=0.6.0
 langchain-mcp-adapters>=0.2.0
 langgraph>=0.4.0
 langgraph-checkpoint>=2.1.0
@@ -51,7 +53,8 @@ faiss-cpu
 python-dotenv
 duckduckgo-search
 ddgs
-mcp
+mcp<2.0
+fastmcp
 bcrypt
 gnews
 linkpreview
