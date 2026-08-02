@@ -74,17 +74,8 @@ if hasattr(st, "secrets"):
         if sec_key in st.secrets:
             os.environ[sec_key] = st.secrets[sec_key]
 
-primary_model = "deepseek-v4-flash:cloud"
-fallback_model = "gpt-oss:20b-cloud"
-
-try:
-    ollama_primary = ChatOllama(model=primary_model, temperature=0.0)
-    ollama_fallback = ChatOllama(model=fallback_model, temperature=0.0)
-    groq_fallback = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.0, max_retries=5)
-    llm = ollama_primary.with_fallbacks([ollama_fallback, groq_fallback])
-except Exception as ex:
-    print(f"Ollama initialization note: {ex}")
-    llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.0, max_retries=5)
+from llm_utils import build_llm
+llm = build_llm(temperature=0.0)
 
 
 # ── Smart Query Parsing Helper ─────────────────────────────────────

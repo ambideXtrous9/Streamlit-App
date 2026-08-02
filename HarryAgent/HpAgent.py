@@ -26,14 +26,8 @@ if "GROQ_API_KEY" in st.secrets:
 
 temperature = 0.7
 
-try:
-    ollama_primary = ChatOllama(model="deepseek-v4-flash:cloud", temperature=temperature)
-    ollama_fallback = ChatOllama(model="gpt-oss:20b-cloud", temperature=temperature)
-    groq_fallback = ChatGroq(model_name="llama-3.1-8b-instant", temperature=temperature)
-    llm = ollama_primary.with_fallbacks([ollama_fallback, groq_fallback])
-except Exception as ex:
-    print(f"Ollama initialization note: {ex}")
-    llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=temperature)
+from llm_utils import build_llm
+llm = build_llm(temperature=temperature)
 
 
 ddg_search_tool = Tool(
