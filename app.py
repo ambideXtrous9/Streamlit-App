@@ -82,6 +82,13 @@ _log("🚀 Starting ambideXtrous AI Portfolio...")
 _log("⏳ Loading core modules (Streamlit, LangChain, LangGraph)...")
 
 import streamlit as st
+
+# Sync all Streamlit secrets to os.environ for unified application-wide access
+if hasattr(st, "secrets"):
+    for k, v in st.secrets.items():
+        if isinstance(v, str):
+            os.environ[k] = v
+
 import pandas as pd
 import numpy as np
 import requests

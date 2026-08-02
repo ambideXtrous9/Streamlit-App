@@ -9,6 +9,7 @@ from gnews import GNews
 from langchain_core.messages import AIMessage
 import pandas as pd
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 import yfinance as yf
 import ta
@@ -51,15 +52,17 @@ heading = f"## {rocket_icon} AI Financial Research Report"
 
 
 temperature = 0.1
-os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-model_name = "openai/gpt-oss-20b" #"moonshotai/kimi-k2-instruct-0905" #openai/gpt-oss-20b #"qwen/qwen3-32b"
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
-llm = ChatGroq(
-    model_name=model_name,
-    temperature=temperature,
-    seed = 42,
-    tags=["StockAgentExpert"]
-)
+try:
+    ollama_primary = ChatOllama(model="deepseek-v4-flash:cloud", temperature=temperature)
+    ollama_fallback = ChatOllama(model="gpt-oss:20b-cloud", temperature=temperature)
+    groq_fallback = ChatGroq(model_name="llama-3.1-8b-instant", temperature=temperature, seed=42, tags=["StockAgentExpert"])
+    llm = ollama_primary.with_fallbacks([ollama_fallback, groq_fallback])
+except Exception as ex:
+    print(f"Ollama initialization note: {ex}")
+    llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=temperature, seed=42, tags=["StockAgentExpert"])
 
 # OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 

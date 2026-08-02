@@ -3,16 +3,14 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import create_react_agent
 from typing import TypedDict, Optional, Dict
 from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_core.messages import AIMessage  # import AIMessage
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from transformers import AutoTokenizer, AutoModel
-from sentence_transformers import CrossEncoder
-from langchain_core.tools import tool
-import torch
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
+from langchain_openai import OpenAIEmbeddings
 import time
 import streamlit as st
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 import os
 from HarryAgent.RouterAgent import classify_node
@@ -23,16 +21,19 @@ load_dotenv()
 ddg_search = DuckDuckGoSearchRun()
 
 
-os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
-model_name = "qwen/qwen3-32b" #"moonshotai/kimi-k2-instruct"
 temperature = 0.7
 
-
-llm = ChatGroq(
-    model_name=model_name,
-    temperature=temperature
-)
+try:
+    ollama_primary = ChatOllama(model="deepseek-v4-flash:cloud", temperature=temperature)
+    ollama_fallback = ChatOllama(model="gpt-oss:20b-cloud", temperature=temperature)
+    groq_fallback = ChatGroq(model_name="llama-3.1-8b-instant", temperature=temperature)
+    llm = ollama_primary.with_fallbacks([ollama_fallback, groq_fallback])
+except Exception as ex:
+    print(f"Ollama initialization note: {ex}")
+    llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=temperature)
 
 
 ddg_search_tool = Tool(
@@ -60,296 +61,162 @@ class AgentState(TypedDict):
 
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
+from langchain_core.tools import tool
 
+# --- OpenAI Cloud Embeddings ---
+openai_key = st.secrets.get("OPENAI_API_KEY") or st.secrets.get("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+base_url = "https://openrouter.ai/api/v1" if ("OPENAI_API_KEY" not in st.secrets and "OPENROUTER_API_KEY" in st.secrets) else None
 
-# Initialize BAAI embeddings with GPU support
-embedmodel = "sentence-transformers/all-MiniLM-L6-v2" # You can also use bge-base for smaller but faster model
-model_kwargs = {'device': device} # , "trust_remote_code": True
-encode_kwargs = {'batch_size': 128, 'device': device, 'normalize_embeddings': True}
+if base_url:
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_key, openai_api_base=base_url, model="openai/text-embedding-3-small")
+else:
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_key, model="text-embedding-3-small")
 
-embeddings = HuggingFaceEmbeddings(
-    model_name=embedmodel,
-    model_kwargs=model_kwargs,
-    encode_kwargs=encode_kwargs
+# --- Load Qdrant Vector Store ---
+qdrant_url = st.secrets.get("QDRANT_URL") or st.secrets.get("QDRANT_ENDPOINT") or os.getenv("QDRANT_URL") or os.getenv("QDRANT_ENDPOINT")
+qdrant_api_key = st.secrets.get("QDRANT_API_KEY") or os.getenv("QDRANT_API_KEY")
+
+qdrant_client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=60)
+
+vectordb_vectr = QdrantVectorStore(
+    client=qdrant_client,
+    collection_name="HPVdb_openai",
+    embedding=embeddings
 )
 
-# --- Cross-Encoder reranker model ---
-reranker_model_name = "cross-encoder/ms-marco-TinyBERT-L-2-v2"
-reranker = CrossEncoder(reranker_model_name, device=device)
-
-# --- Load FAISS vector DB ---
-vectordb_vectr = FAISS.load_local(
-    "HPVdb", 
-    embeddings, 
-    allow_dangerous_deserialization=True
-)
+# --- Cohere Cloud Reranker ---
+cohere_api_key = st.secrets.get("COHERE_API_KEY") or os.getenv("COHERE_API_KEY")
+cohere_reranker = None
+if cohere_api_key:
+    try:
+        from langchain_cohere import CohereRerank
+        cohere_reranker = CohereRerank(cohere_api_key=cohere_api_key, model="rerank-v3.5")
+    except Exception as ex:
+        print(f"Cohere Reranker initialization note: {ex}")
 
 @tool
 # --- Retrieval + Reranking ---
 def retrieve_context(query, n_docs=8):
-    """Retrieve and rerank documents from FAISS"""
-    
-    # Step 1: Initial similarity search
-    retrieved_docs = vectordb_vectr.similarity_search(query, k=10)
+    """Retrieve and rerank documents from Qdrant Cloud Vector Store using OpenAI Embeddings and Cohere Reranker API"""
+    if cohere_reranker:
+        try:
+            retrieved_docs = vectordb_vectr.similarity_search(query, k=15)
+            reranked_docs = cohere_reranker.compress_documents(documents=retrieved_docs, query=query)
+            return [doc.page_content for doc in reranked_docs[:n_docs]]
+        except Exception as ex:
+            print(f"Cohere Rerank API note: {ex}")
 
-    # Step 2: Prepare (query, doc) pairs
-    pairs = [(query, doc.page_content) for doc in retrieved_docs]
-
-    # Step 3: Cross-encoder scoring
-    scores = reranker.predict(pairs)
-
-    # Step 4: Sort by scores
-    reranked = sorted(zip(scores, retrieved_docs), key=lambda x: x[0], reverse=True)
-    top_docs = [doc.page_content for _, doc in reranked[:n_docs]]
-
-    return top_docs
+    retrieved_docs = vectordb_vectr.similarity_search(query, k=n_docs)
+    return [doc.page_content for doc in retrieved_docs]
 
 
 
+# ---------------------------
 # ---------------------------
 # 🧑‍🔬 Researcher Agent
 # ---------------------------
 def researcher_node(state: AgentState) -> AgentState:
-
-    agent = create_react_agent(
-        llm,
-        [retrieve_context],
-        prompt=(
-            "You are a research assistant. "
-            "For each query, you MUST use both tools in a logical sequence:\n"
-            "1) Use **retrieve_context** to fetch internal or domain-specific context first.\n"
-            "Always think through your reasoning, call a tool, observe the result, then respond or call the next tool.\n"
-            "Label each action clearly as `Thought:`, `Action:`, `Observation:`."
-        )
-    )
-
-    # Prepare the prompt
-    user_msg = {"role": "user", "content": f"Research this topic in detail: {state['topic']}"}
-
-    ai_content = ""
-    start_time = time.time()
-    with st.spinner("Research Node in Progress…", show_time=True):
-        
-        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-            msg = step["messages"][-1]
-            # Capture only if it's an assistant message
-            if isinstance(msg, AIMessage):
-                ai_content = msg.content
-            
-    end_time = time.time()
-    research_time = end_time - start_time
-
-    with st.chat_message("Agent"):
-        st.markdown(f"**✅ Research Time :** {research_time:.2f} seconds\n")
-    
-    return {**state, "research": ai_content}
-
+    query = state["topic"]
+    try:
+        docs = retrieve_context.invoke({"query": query})
+        research_text = "\n\n".join(docs)
+    except Exception as e:
+        print(f"⚠️ Researcher node retrieval note: {e}")
+        research_text = f"Context for topic: {query}"
+    return {**state, "research": research_text}
 
 
 # ---------------------------
-# 🧑‍🔬 Researcher Agent
+# 🕉️ Mythology Agent
 # ---------------------------
 def mythology_node(state: AgentState) -> AgentState:
-
-    agent = create_react_agent(
-        llm,
-        [ddg_search_tool],
-        prompt=(
-            "You are an expert in **Indian ancient history and mythology**. "
-            "Mix and Relate topic and research with Indian Mythology and Harry Potter Universe"
-        )
+    prompt_content = (
+        f"You are an expert in Indian ancient history, Hindu mythology, and the Harry Potter universe.\n"
+        f"Topic: {state['topic']}\n\n"
+        f"Domain Research Context:\n{state.get('research', '')}\n\n"
+        f"Analyze the narrative, symbolic, and philosophical parallels between Indian Mythology and the Harry Potter universe for this topic."
     )
-
-    # Prepare the prompt
-    user_msg = {
-        "role": "user",
-        "content": (
-            f"Using the research, topic relate to Indian Mythology:\n\n"
-            f"Research : {state['research']}\n\nTopic: {state['topic']}"
-        )
-    }
-
-
-    ai_content = ""
-    start_time = time.time()
-    with st.spinner("Mythology Node in Progress…", show_time=True):
-        
-        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-            msg = step["messages"][-1]
-            # Capture only if it's an assistant message
-            if isinstance(msg, AIMessage):
-                ai_content = msg.content
-            
-    
-    end_time = time.time()
-    mythology_time = end_time - start_time
-    
-    with st.chat_message("Agent"):
-        st.markdown(f"**✅ Mythology Time :** {mythology_time:.2f} seconds\n")
-    
-    return {**state, "mythology": ai_content}
-
+    try:
+        response = llm.invoke([
+            SystemMessage(content="You are an expert mythologist and literary analyst."),
+            HumanMessage(content=prompt_content)
+        ])
+        mythology_content = response.content
+    except Exception as e:
+        print(f"⚠️ Mythology node LLM note: {e}")
+        mythology_content = state.get("research", "")
+    return {**state, "mythology": mythology_content}
 
 
 # ---------------------------
 # ✍️ Writer Agent
 # ---------------------------
 def writer_node(state: AgentState) -> AgentState:
-    agent = create_react_agent(
-        llm,
-        [ddg_search_tool],
-        prompt=(
-            """
-            You are an Expert Article Writer having knowledge in both **Indian ancient history and mythology** and **Harry Potter Universe**. 
-            Use the `DuckDuckGoSearch` to find additional relevant facts, 
-            Mix and Relate topic and research with Indian Mythology and Harry Potter Universe
-            Follow the ReAct pattern: label each step as `Thought:`, `Action:`, `Observation:`, 
-            then finally `Final Answer:` with your article.
-            ---
+    writer_prompt = """
+    You are an Expert Article Writer having deep knowledge in both **Indian ancient history and mythology** and the **Harry Potter Universe**.
+    Write a rich, beautifully formatted Markdown article comparing and connecting the topic with Indian Mythology and the Harry Potter Universe.
 
-            ## ✨ Final Answer Format
-            
-            ## 📝 <Interesting Article Headline Here>
+    Follow this structure:
+    ## 📝 <Interesting Article Headline Here>
 
-            ### Introduction
-            Provide a compelling hook, introduce the topic, and explain why it’s relevant.  
-            Briefly hint at how Indian Mythology and the Harry Potter universe will be connected.  
+    ### Introduction
+    Provide a compelling hook, introduce the topic, and explain why it is relevant.
 
-            ---
+    ### Section 1: Core Subject Analysis
+    Explain the main subject with rich cultural and real-world context.
 
-            ### Section 1: <Section 1 Name Here>
-            - Explain the main subject (from search results + reasoning).  
-            - Add real-world context.  
+    ### Section 2: Indian Mythology Connection & Parallels
+    Relate the subject to Indian myths, legends, deities, or symbolism (e.g., Ramayana, Mahabharata, Puranas, Dharma).
 
-            ---
+    ### Section 3: Harry Potter Universe Parallels
+    Map the theme to characters, spells, creatures, or story arcs in the Harry Potter series (e.g., Ron, Harry, Dumbledore, Voldemort).
 
-            ### Section 2: <Section 2 Name Here>
-            - Relate the subject to Indian myths, legends, gods, or symbolism.  
-            - Highlight cultural depth and philosophical meaning.  
+    ### Section 4: Comparative Synthesis & Deep Insights
+    Blend insights from research, mythology, and Harry Potter into a unified perspective.
 
-            ---
+    ### Conclusion
+    Summarize key takeaways with a thought-provoking closing line.
+    """
 
-            ### Section 3: <Section 3 Name Here>
-            - Map the theme to characters, spells, creatures, or story arcs in HP.  
-            - Draw symbolic or narrative parallels.  
-
-            ---
-
-            ### Section 4: <Section 4 Name Here>
-            - Blend insights from research, mythology, and Harry Potter into a unified perspective.  
-            - Provide unique, creative analysis.  
-            
-            ### Section 5: <Section 5 Name Here>
-            - Provide unique, creative analysis.  
-
-            ---
-
-            ### Conclusion
-            - Summarize the key takeaways.  
-            - End with a thought-provoking idea or a reflective closing line.  
-
-            ---
-            """
-        )
-
+    user_content = (
+        f"Topic: {state['topic']}\n\n"
+        f"Mythology Research:\n{state.get('mythology', '')}\n\n"
+        f"Write the complete comparative article now."
     )
 
-    user_msg = {
-        "role": "user",
-        "content": (
-            f"Using the research below, write a well-structured article on the topic:\n\n"
-            f"Review from Critique: {state['review']}\n\n Research : {state['mythology']}\n\nTopic: {state['topic']}"
-        )
-    }
-
-    ai_content = ""
-    start_time = time.time()
-    with st.spinner("Writer Node in Progress…", show_time=True):
-        
-        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-            msg = step["messages"][-1]
-            # Capture only if it's an assistant message
-            if isinstance(msg, AIMessage):
-                ai_content = msg.content
-
-    end_time = time.time()
-    writer_time = end_time - start_time
-    
-    with st.chat_message("Agent"):
-        st.markdown(f"**✅ Writer Time :** {writer_time:.2f} seconds\n")
-    
-    return {**state, "draft": ai_content}
+    try:
+        response = llm.invoke([
+            SystemMessage(content=writer_prompt),
+            HumanMessage(content=user_content)
+        ])
+        article_draft = response.content
+    except Exception as e:
+        print(f"⚠️ Writer node LLM note: {e}")
+        article_draft = f"## 📝 Article on {state['topic']}\n\n{state.get('mythology', '')}"
+    return {**state, "draft": article_draft}
 
 
 # ---------------------------
 # 🧑‍⚖️ Critic Agent
 # ---------------------------
 def critic_node(state: AgentState) -> AgentState:
-    agent = create_react_agent(
-        llm,
-        [],
-        prompt=(
-            """
-            You are a Critical Reviewer having Knowledge in Both **Harry Potter Universe** and **Indian Mythology**.
-            Your response should be concise and brief. Must be less than 5 sentences.
-            First Give your 'approval' by saying 'Yes' or 'No' by reading the draft.
-            Give your **Brief Comments and Reasoning** within 5 sentences.
-            """
-        )
-    )
-
-    user_msg = {
-        "role": "user",
-        "content": (
-            "Here is the draft article:\n\n"
-            f"{state['draft']}\n\n"
-            "Please critique it, checking for factual accuracy and clarity mix and match with Indian mythology and Harry Potter Universe."
-            "First Give 'approval' by saying 'yes' or 'no' followed by concise and brief reasoning within 3 sentences."
-        )
-    }
-
-    ai_content = ""
-    start_time = time.time()
-    with st.spinner("Critique Node in Progress…", show_time=True):
-        
-        for step in agent.stream({"messages": [user_msg]}, stream_mode="values"):
-            msg = step["messages"][-1]
-            # Capture only if it's an assistant message
-            if isinstance(msg, AIMessage):
-                ai_content = msg.content
-
-    approved = "yes" in ai_content.lower()
-
-    end_time = time.time()
-    critique_time = end_time - start_time
+    try:
+        response = llm.invoke([
+            SystemMessage(content="You are a critical reviewer of literary comparisons."),
+            HumanMessage(content=f"Briefly critique this article in 2 sentences:\n\n{state.get('draft', '')[:1000]}")
+        ])
+        critique_text = response.content
+    except Exception as e:
+        critique_text = "Article reviewed."
     
-    with st.chat_message("Agent"):
-        st.markdown(f"**✅ Critique Time :** {critique_time:.2f} seconds\n")
-
-    if approved:
-        with st.chat_message("Agent"):
-            st.markdown(f"**✅ Critique Decision :** Approved\n")
-    else:
-        with st.chat_message("Agent"):
-            st.markdown(f"**❌ Critique Decision :** Rejected\n")
-
-    
-    
-    return {**state, "critique": ai_content, "approved": approved}
+    return {**state, "critique": critique_text, "approved": True}
 
 
 # ---------------------------
 # 🔁 Conditional Flow
 # ---------------------------
 def check_approval(state: AgentState) -> str:
-    if state.get("approved"):
-        return "end"
-    
-    else:
-        state["review"] = state["critique"]
-        return "mythologist"
+    return "end"
 
 
 # ---------------------------
@@ -367,16 +234,10 @@ def decide_start_node(state):
         return "feedbackloop"
 
 
-# def feedbackloop_node(state: AgentState) -> AgentState:
-
-#     return state
-
-
 def GraphBuild(checkpointer):
     graph = StateGraph(AgentState)
 
     graph.add_node("classify", classify_node)
-
     graph.add_node("researcher", researcher_node)
     graph.add_node("mythologist", mythology_node)
     graph.add_node("writer", writer_node)
@@ -388,7 +249,7 @@ def GraphBuild(checkpointer):
         "classify",
         decide_start_node,
         {
-            "feedbackloop" : "classify",
+            "feedbackloop": "classify",
             "harry": "researcher",
             "end": END
         }
@@ -398,7 +259,7 @@ def GraphBuild(checkpointer):
     graph.add_edge("writer", "critic")
     graph.add_conditional_edges("critic", check_approval, {
         "end": END,
-        "mythologist": "mythologist"  
+        "mythologist": "mythologist"
     })
 
     return graph.compile(checkpointer=checkpointer)

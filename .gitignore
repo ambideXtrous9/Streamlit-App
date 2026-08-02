@@ -6,6 +6,7 @@ TXT.txt
 .streamlit
 stenv
 
+.strmlit
 .port
 .qwen
 .rp360
