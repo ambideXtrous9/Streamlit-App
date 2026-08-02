@@ -120,6 +120,7 @@ async def airbnbAgent(state: Dict[str, Any]):
     if not _NPX_AVAILABLE:
         ai_content = "⚠️ Airbnb search unavailable — Node.js/npx runtime not available."
     else:
+        ai_content = ""
         try:
             mcp_env = dict(os.environ)
             mcp_env["AIRBNB_BASE_URL"] = "https://www.airbnb.co.in"
@@ -134,19 +135,26 @@ async def airbnbAgent(state: Dict[str, Any]):
                 async with stdio_client(server_params, errlog=err_log) as (read, write):
                     async with ClientSession(read, write) as session:
                         print("Initializing MCP connection...")
-                        await asyncio.wait_for(session.initialize(), timeout=20)
+                        await asyncio.wait_for(session.initialize(), timeout=25)
 
                         orig_call_tool = session.call_tool
 
                         async def custom_call_tool(name, arguments=None, **kwargs):
-                            result = await orig_call_tool(name, arguments=arguments, **kwargs)
+                            try:
+                                result = await asyncio.wait_for(
+                                    orig_call_tool(name, arguments=arguments, **kwargs),
+                                    timeout=30
+                                )
+                            except asyncio.TimeoutError:
+                                print(f"⚠️ MCP tool '{name}' timed out")
+                                return None
                             if name == "airbnb_search" and hasattr(result, "content") and result.content:
                                 for c in result.content:
                                     if hasattr(c, "text") and c.text:
                                         try:
                                             data = json.loads(c.text)
                                             if isinstance(data, dict) and "searchResults" in data and isinstance(data["searchResults"], list):
-                                                data["searchResults"] = data["searchResults"][:3]
+                                                data["searchResults"] = data["searchResults"][:5]
                                                 data.pop("paginationInfo", None)
                                                 c.text = json.dumps(data)
                                         except Exception as ex:
@@ -156,7 +164,9 @@ async def airbnbAgent(state: Dict[str, Any]):
                         session.call_tool = custom_call_tool
 
                         print("Loading MCP tools...")
-                        tools = await load_mcp_tools(session)
+                        tools = await asyncio.wait_for(load_mcp_tools(session), timeout=15)
+                        # Filter to only search tool to prevent extra MCP calls that crash TaskGroup
+                        tools = [t for t in tools if t.name == "airbnb_search"]
                         print(f"Loaded {len(tools)} MCP tools: {[t.name for t in tools]}")
 
                         class CleanAirbnbSearch(BaseModel):
@@ -174,9 +184,23 @@ async def airbnbAgent(state: Dict[str, Any]):
                             f"Extracted Destination: {location}\n"
                             f"Check-in Date: {checkin_str}\n"
                             f"Check-out Date: {checkout_str}\n"
+                            f"Duration: {duration} nights\n\n"
                             f"Instructions:\n"
                             f"1. Search for available stays in '{location}' from {checkin_str} to {checkout_str} using airbnb_search.\n"
-                            f"2. Summarize top stays with Name, Rating, Price/Night, Address, Key Amenities, and Direct Booking URL."
+                            f"2. For EACH listing found, extract ALL available details:\n"
+                            f"   - Full property name and type (hotel, villa, cottage, apartment)\n"
+                            f"   - Star rating and review count\n"
+                            f"   - Complete address and neighborhood\n"
+                            f"   - Price per night (INR & USD), total price, taxes & fees breakdown\n"
+                            f"   - Room categories (beds, bedrooms, bathrooms)\n"
+                            f"   - ALL amenities (WiFi, pool, gym, spa, kitchen, parking, AC, heating, washer, balcony, mountain/sea view etc.)\n"
+                            f"   - Direct booking URL\n"
+                            f"   - Host details (superhost status, response rate)\n"
+                            f"   - Check-in/Check-out times and cancellation policy if available\n"
+                            f"   - Distance to city center and key landmarks if mentioned\n"
+                            f"   - Guest review highlights and standout features\n"
+                            f"3. Present ALL extracted data in a structured format. Do NOT skip any available field.\n"
+                            f"4. Use ONLY the airbnb_search tool. Do NOT call any other tool.\n"
                         )
 
                         agent = create_react_agent(
@@ -188,17 +212,19 @@ async def airbnbAgent(state: Dict[str, Any]):
                         print(f"Invoking Airbnb react agent for query: {topic}")
                         response = await asyncio.wait_for(
                             agent.ainvoke({"messages": [{"role": "user", "content": topic}]}),
-                            timeout=45
+                            timeout=60
                         )
 
                         ai_content = response["messages"][-1].content
                         print(f"Final Airbnb agent response: {ai_content[:500]}")
-        except Exception as e:
-            print(f"⚠️ Airbnb Agent error ({type(e).__name__}): {e}")
-            ai_content = (
-                f"⚠️ Could not load live Airbnb listings for {location} ({checkin_str} to {checkout_str}).\n"
-                f"Note: Standard boutique homestays & mountain cottages are recommended for this destination."
-            )
+        except (Exception, BaseException) as e:
+            error_name = type(e).__name__
+            print(f"⚠️ Airbnb Agent error ({error_name}): {e}")
+            if not ai_content:
+                ai_content = (
+                    f"⚠️ Could not load live Airbnb listings for {location} ({checkin_str} to {checkout_str}).\n"
+                    f"Note: Standard boutique homestays & mountain cottages are recommended for this destination."
+                )
 
     print(f"✅ Airbnb Agent completed in {time.time() - start:.2f}s")
     return {"knowledge": [f"[Info from AirBnb Search]\n{ai_content}\n\n"]}
@@ -299,43 +325,83 @@ async def weatherAgent(state: Dict[str, Any]):
 
 # ── Tour Agent (final summarizer) ─────────────────────────────────
 touragentprompt = """
-You are an expert Travel & Tour Guide Assistant. Create a comprehensive, beautiful Tour Guide Plan based on the user request and gathered reports.
+You are an expert Travel & Tour Guide Assistant. Create a comprehensive, stunning Tour Guide Plan based on the user request and gathered intelligence reports.
 
-Format the output strictly using GitHub Flavored Markdown:
+Format the output strictly using GitHub Flavored Markdown. Use ONLY Markdown — NO raw HTML tags like <br>. Use newlines for line breaks.
 
 ## 🎯 Search Summary
-- **Location:** [Location] | **Dates:** [Check-in] → [Check-out]
-- **Guests:** 2 Adults | **Duration:** [Duration] Days
-- **Stays Found:** [Number] Stays
+- **Location:** [location] | **Dates:** [checkin] → [checkout]
+- **Guests:** [adults]A, [children]C, [infants]I, [pets]P
+- **Room:** [room type] | **Stars:** [rating] | **Amenities:** [amenities]
+- **Results:** [number] hotels/stays found
 
 ---
 
-## 🏨 Recommended Stays
-Format each stay into a clean Markdown table with:
-- Name & Booking URL
-- Star Rating & Review count
-- Price/Night (INR/USD)
-- Address/Neighborhood
-- Key Amenities
+## 🏨 Hotel / Stay Listings
+
+For EACH stay found, create a detailed section:
+
+### 🏠 [Hotel/Stay Name]
+| Detail | Info |
+|--------|------|
+| ⭐ Rating | [rating]/5 ([reviews] reviews) |
+| 📍 Address | [full address, neighborhood] |
+| 💰 Rate | ₹[price]/night (≈ $[usd]) + ₹[tax] fees |
+| 💵 Total | ₹[total] for [nights] nights |
+| 🏠 Rooms | [bedrooms, beds, bathrooms] |
+| 📏 Distance | [city center distance] • [airport/station distance] |
+| 🔗 Booking | [Direct Booking URL] |
+| 🏷️ Host | [host name, superhost badge, response rate] |
+
+**Key Amenities:** WiFi, Pool, Gym, Spa, Kitchen, Parking, AC, Heating, Washer, Balcony, Mountain View, etc.
+
+**Booking Details:** Check-in [time], Check-out [time], Cancellation [policy], Payment [methods]
+
+**Guest Highlights:** [Top review quotes or standout features]
 
 ---
 
-## 🏆 Final Stay Recommendations
-- **Best Overall Value:** [Name + Reason]
-- **Luxury Pick:** [Name + Features]
-- **Budget Pick:** [Name + Savings]
+(Repeat for each stay)
+
+## 📈 Quick Comparison
+| Stay | Rating | Price/Night | Key Features | Booking |
+|------|--------|-------------|--------------|----------|
+| [S1] | [rating]⭐ | ₹[price] | [2 highlights] | [URL] |
+| [S2] | [rating]⭐ | ₹[price] | [2 highlights] | [URL] |
+
+---
+
+## 🏆 Final Picks
+- **🥇 Best Value:** [stay + reason]
+- **💎 Luxury Pick:** [stay + premium features]
+- **💰 Budget Pick:** [stay + savings]
+- **📍 Best Location:** [stay + location benefit]
+- **✨ Best Amenities:** [stay + standout amenities]
 
 ---
 
 ## 🌤️ Weather Forecast & Climate Guide
 - Summary of current conditions, temperature range, wind, and rain likelihood.
-- Day-by-day forecast table.
+- Day-by-day forecast table:
+
+| Day | Date | Condition | High | Low | Humidity | Wind |
+|-----|------|-----------|------|-----|----------|------|
+| Day 1 | [date] | [condition] | [max]°C | [min]°C | [humidity]% | [wind] kph |
 
 ---
 
-## 🧭 Day-by-Day Itinerary & Packing Advice
-- Recommended activities for Day 1, Day 2, Day 3 based on weather.
-- Clothing & essential travel items.
+## 🧭 Day-by-Day Itinerary
+For each day, provide:
+- Morning, Afternoon, Evening activities based on weather
+- Restaurant / dining suggestions
+- Transport tips
+
+---
+
+## 🎒 Packing Essentials
+- Clothing recommendations based on weather forecast
+- Essential travel items for the destination
+- Special items (trekking gear, sunscreen, rain gear, etc.)
 """
 
 
